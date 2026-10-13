@@ -74,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 👉 इन्स्टाग्राम स्टाईल सुपर-क्लासी लॉगआऊट कन्फर्मेशन पॉपअप विन्डो
+  // 👉 Logout Confirmation Dialog with Session Cleared
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -155,8 +155,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPressed: () async {
                         Navigator.of(dialogContext).pop();
                         
+                        // 👉 Clear current user identifier for security
+                        DatabaseHelper.currentUserIdentifier = null;
+
                         final prefs = await SharedPreferences.getInstance();
                         await prefs.setBool('isLoggedIn', false);
+                        await prefs.remove('userIdentifier');
+                        await prefs.remove('userPassword');
 
                         if (!mounted) return;
 
@@ -246,7 +251,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             MaterialPageRoute(
                               builder: (context) => SiteDetailScreen(siteName: site['name']),
                             ),
-                          );
+                          ).then((_) {
+                            _loadSites();
+                          });
                         },
                       ),
                     );

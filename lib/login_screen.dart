@@ -60,6 +60,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (isValid) {
+        // 👉 Set current user identifier for Firestore session
+        DatabaseHelper.currentUserIdentifier = _savedIdentifier!.trim().toLowerCase();
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool('isLoggedIn', true);
 
@@ -117,6 +120,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (isValid) {
+        // 👉 Set current user identifier for Firestore session
+        DatabaseHelper.currentUserIdentifier = identifier.trim().toLowerCase();
+
         final prefs = await SharedPreferences.getInstance();
         
         if (_rememberMe) {

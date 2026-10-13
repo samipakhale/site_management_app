@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'database_helper.dart';
+import 'home_screen.dart';
 import 'welcome_screen.dart'; 
 
 class SplashScreen extends StatefulWidget {
@@ -12,9 +15,35 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    
-    Future.delayed(const Duration(milliseconds: 3000), () {
+    _checkLoginAndNavigate();
+  }
+
+  // 👉 Check if user is already logged in via SharedPreferences
+  void _checkLoginAndNavigate() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    String? savedIdentifier = prefs.getString('userIdentifier');
+    String? savedPassword = prefs.getString('userPassword');
+
+    Future.delayed(const Duration(milliseconds: 3000), () async {
       if (!mounted) return;
+
+      if (isLoggedIn && savedIdentifier != null && savedPassword != null) {
+        // Automatically set current user identifier for Firestore sync
+        bool isValid = await DatabaseHelper.instance.checkLogin(savedIdentifier, savedPassword);
+        
+        if (!mounted) return;
+
+        if (isValid) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+          return;
+        }
+      }
+
+      // Otherwise go to Welcome / Login screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const WelcomeScreen()),
