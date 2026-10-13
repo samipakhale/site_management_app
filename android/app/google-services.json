@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "646156903087",
+    "project_id": "sitemanagementapp-a3192",
+    "storage_bucket": "sitemanagementapp-a3192.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:646156903087:android:1e17af9fbffe5b43a06a5a",
+        "android_client_info": {
+          "package_name": "com.example.site_management_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1P7dJfKW8lgzfYkaz0QGtZ321SwiKxS0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

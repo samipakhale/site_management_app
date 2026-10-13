@@ -1,108 +1,128 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   DatabaseHelper._init();
 
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // 👉 User Registration in Firestore
   Future<bool> registerUser(String identifier, String password) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> usersList = prefs.getStringList('registered_users') ?? [];
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('identifier', isEqualTo: identifier)
+          .get();
 
-    for (String userStr in usersList) {
-      Map<String, dynamic> userMap = jsonDecode(userStr);
-      if (userMap['identifier'] == identifier) {
-        return false;
+      if (querySnapshot.docs.isNotEmpty) {
+        return false; // User already exists
       }
-    }
 
-    Map<String, dynamic> newUser = {
-      'identifier': identifier,
-      'password': password,
-    };
-    usersList.add(jsonEncode(newUser));
-    await prefs.setStringList('registered_users', usersList);
-    return true;
+      await _firestore.collection('users').add({
+        'identifier': identifier,
+        'password': password,
+      });
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
+  // 👉 Check Login from Firestore
   Future<bool> checkLogin(String identifier, String password) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> usersList = prefs.getStringList('registered_users') ?? [];
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('identifier', isEqualTo: identifier)
+          .where('password', isEqualTo: password)
+          .get();
 
-    for (String userStr in usersList) {
-      Map<String, dynamic> userMap = jsonDecode(userStr);
-      if (userMap['identifier'] == identifier && userMap['password'] == password) {
-        return true;
-      }
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      return false;
     }
-    return false;
   }
 
+  // 👉 Insert Site in Firestore
   Future<void> insertSite(String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> sitesList = prefs.getStringList('user_sites') ?? [];
-    sitesList.add(name);
-    await prefs.setStringList('user_sites', sitesList);
-  }
-
-  Future<List<Map<String, dynamic>>> getSites() async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> sitesList = prefs.getStringList('user_sites') ?? [];
-    return sitesList.map((site) => {'name': site}).toList();
-  }
-
-  // खर्च ॲड करणे
-  Future<void> addExpense(String siteName, String categoryName, Map<String, dynamic> expenseData) async {
-    final prefs = await SharedPreferences.getInstance();
-    String key = 'expense_${siteName}_$categoryName';
-    List<String> expensesList = prefs.getStringList(key) ?? [];
-    
-    expenseData['id'] ??= DateTime.now().millisecondsSinceEpoch;
-    expensesList.add(jsonEncode(expenseData));
-    await prefs.setStringList(key, expensesList);
-  }
-
-  // खर्च फेच करणे
-  Future<List<Map<String, dynamic>>> getExpenses(String siteName, String categoryName) async {
-    final prefs = await SharedPreferences.getInstance();
-    String key = 'expense_${siteName}_$categoryName';
-    List<String> expensesList = prefs.getStringList(key) ?? [];
-
-    return expensesList.map((item) => jsonDecode(item) as Map<String, dynamic>).toList();
-  }
-
-  // खर्च आयडीनुसार डिलीट करणे
-  Future<void> deleteExpenseById(String siteName, String categoryName, int id) async {
-    final prefs = await SharedPreferences.getInstance();
-    String key = 'expense_${siteName}_$categoryName';
-    List<String> expensesList = prefs.getStringList(key) ?? [];
-
-    List<Map<String, dynamic>> decodedList = expensesList
-        .map((item) => jsonDecode(item) as Map<String, dynamic>)
-        .toList();
-
-    decodedList.removeWhere((expense) => expense['id'] == id);
-
-    List<String> updatedList = decodedList.map((item) => jsonEncode(item)).toList();
-    await prefs.setStringList(key, updatedList);
-  }
-
-  // खर्च एडिट करून अपडेट करणे
-  Future<void> updateExpense(String siteName, String categoryName, Map<String, dynamic> updatedExpense) async {
-    final prefs = await SharedPreferences.getInstance();
-    String key = 'expense_${siteName}_$categoryName';
-    List<String> expensesList = prefs.getStringList(key) ?? [];
-
-    List<Map<String, dynamic>> decodedList = expensesList
-        .map((item) => jsonDecode(item) as Map<String, dynamic>)
-        .toList();
-
-    int index = decodedList.indexWhere((exp) => exp['id'] == updatedExpense['id']);
-    if (index != -1) {
-      decodedList[index] = updatedExpense;
+    try {
+      await _firestore.collection('sites').add({
+        'name': name,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      // Handle error
     }
+  }
 
-    List<String> updatedList = decodedList.map((item) => jsonEncode(item)).toList();
-    await prefs.setStringList(key, updatedList);
+  // 👉 Get Sites from Firestore
+  Future<List<Map<String, dynamic>>> getSites() async {
+    try {
+      QuerySnapshot snapshot = await _firestore.collection('sites').get();
+      return snapshot.docs.map((doc) {
+        return {'name': doc['name'].toString()};
+      }).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // 👉 Add Expense to Firestore
+  Future<void> addExpense(String siteName, String categoryName, Map<String, dynamic> expenseData) async {
+    try {
+      await _firestore
+          .collection('sites')
+          .doc(siteName)
+          .collection(categoryName)
+          .doc(expenseData['id'].toString())
+          .set(expenseData);
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  // 👉 Get Expenses from Firestore
+  Future<List<Map<String, dynamic>>> getExpenses(String siteName, String categoryName) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('sites')
+          .doc(siteName)
+          .collection(categoryName)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        return doc.data() as Map<String, dynamic>;
+      }).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // 👉 Delete Expense by ID from Firestore
+  Future<void> deleteExpenseById(String siteName, String categoryName, int id) async {
+    try {
+      await _firestore
+          .collection('sites')
+          .doc(siteName)
+          .collection(categoryName)
+          .doc(id.toString())
+          .delete();
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  // 👉 Update Expense in Firestore
+  Future<void> updateExpense(String siteName, String categoryName, Map<String, dynamic> updatedExpense) async {
+    try {
+      await _firestore
+          .collection('sites')
+          .doc(siteName)
+          .collection(categoryName)
+          .doc(updatedExpense['id'].toString())
+          .update(updatedExpense);
+    } catch (e) {
+      // Handle error
+    }
   }
 }

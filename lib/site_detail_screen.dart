@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; 
 import 'database_helper.dart'; 
 import 'category_detail_screen.dart'; 
+import 'site_analytics_screen.dart';
 
 class SiteDetailScreen extends StatefulWidget {
   final String siteName;
@@ -73,6 +74,21 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF1E293B)),
+        actions: [
+          // 👉 Analytics Button ithe add kela ahe
+          IconButton(
+            icon: const Icon(Icons.bar_chart_rounded, color: Color(0xFF3B82F6), size: 26),
+            tooltip: 'View Analytics & Charts',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SiteAnalyticsScreen(siteName: widget.siteName),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
