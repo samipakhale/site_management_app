@@ -15,13 +15,13 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
   bool _isLoading = true;
   double _totalExpense = 0.0;
   
-  // 👉 Ithe 'Other' aivaji 'Other Expenses' kelay
+  // 👉 Fixed to 'Other' to match CategoryDetailScreen
   Map<String, double> _categoryExpenses = {
     'Material': 0.0,
     'Labour': 0.0,
     'Equipment': 0.0,
     'Vendor': 0.0,
-    'Other Expenses': 0.0,
+    'Other': 0.0,
   };
 
   int touchedIndex = -1;
@@ -33,8 +33,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
   }
 
   Future<void> _loadAnalyticsData() async {
-    // 👉 List madhe pan 'Other Expenses' takle ahe
-    List<String> categories = ['Material', 'Labour', 'Equipment', 'Vendor', 'Other Expenses'];
+    List<String> categories = ['Material', 'Labour', 'Equipment', 'Vendor', 'Other'];
     Map<String, double> tempMap = {};
     double grandTotal = 0.0;
 
@@ -88,7 +87,6 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 👉 Total Summary Card
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -132,7 +130,6 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // 👉 Pie Chart Container
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -173,7 +170,6 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                             ),
                             const SizedBox(height: 20),
                             
-                            // 👉 Indicators / Legend
                             Wrap(
                               spacing: 16,
                               runSpacing: 10,
@@ -183,7 +179,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                                 makeIndicator(Colors.blue, 'Labour', _categoryExpenses['Labour']!),
                                 makeIndicator(Colors.green, 'Equipment', _categoryExpenses['Equipment']!),
                                 makeIndicator(Colors.purple, 'Vendor', _categoryExpenses['Vendor']!),
-                                makeIndicator(Colors.redAccent, 'Other Expenses', _categoryExpenses['Other Expenses']!),
+                                makeIndicator(Colors.redAccent, 'Other', _categoryExpenses['Other']!),
                               ],
                             ),
                           ],
@@ -201,7 +197,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
       const MapEntry('Labour', Colors.blue),
       const MapEntry('Equipment', Colors.green),
       const MapEntry('Vendor', Colors.purple),
-      const MapEntry('Other Expenses', Colors.redAccent),
+      const MapEntry('Other', Colors.redAccent),
     ];
 
     return categories.asMap().map((index, entry) {

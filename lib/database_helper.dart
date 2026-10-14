@@ -1,36 +1,40 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
-  DatabaseHelper._init();
+  
+  DatabaseHelper._init() {
+    _firestore.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+  }
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  // Sadda login aslelya user cha identifier store karnyasathi
   static String? currentUserIdentifier;
 
-  // 👉 User Registration in Firestore
+  // 👉 User Registration with direct document ID
   Future<bool> registerUser(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();
       String cleanPass = password.trim();
 
-      final querySnapshot = await _firestore
-          .collection('users')
-          .where('identifier', isEqualTo: cleanId)
-          .get();
+      final docRef = _firestore.collection('users').doc(cleanId);
+      final docSnap = await docRef.get();
 
-      if (querySnapshot.docs.isNotEmpty) {
+      if (docSnap.exists) {
         return false; // User already exists
       }
 
-      await _firestore.collection('users').add({
+      await docRef.set({
         'identifier': cleanId,
         'password': cleanPass,
         'createdAt': FieldValue.serverTimestamp(),
       });
       return true;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
@@ -41,18 +45,18 @@ class DatabaseHelper {
       String cleanId = identifier.trim().toLowerCase();
       String cleanPass = password.trim();
 
-      final querySnapshot = await _firestore
-          .collection('users')
-          .where('identifier', isEqualTo: cleanId)
-          .where('password', isEqualTo: cleanPass)
-          .get();
+      final docRef = _firestore.collection('users').doc(cleanId);
+      final docSnap = await docRef.get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        currentUserIdentifier = cleanId;
-        return true;
+      if (docSnap.exists) {
+        final data = docSnap.data();
+        if (data != null && data['password'] == cleanPass) {
+          currentUserIdentifier = cleanId;
+          return true;
+        }
       }
       return false;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
@@ -71,7 +75,7 @@ class DatabaseHelper {
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      // Handle error
+      debugPrint('Error inserting site: $e');
     }
   }
 
@@ -88,7 +92,7 @@ class DatabaseHelper {
       return snapshot.docs.map((doc) {
         return {'name': doc['name'].toString()};
       }).toList();
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
@@ -106,7 +110,7 @@ class DatabaseHelper {
           .doc(expenseData['id'].toString())
           .set(expenseData);
     } catch (e) {
-      // Handle error
+      debugPrint('Error adding expense: $e');
     }
   }
 
@@ -125,7 +129,7 @@ class DatabaseHelper {
       return snapshot.docs.map((doc) {
         return doc.data() as Map<String, dynamic>;
       }).toList();
-    } catch (e) {
+    } catch (_) {
       return [];
     }
   }
@@ -143,7 +147,7 @@ class DatabaseHelper {
           .doc(id.toString())
           .delete();
     } catch (e) {
-      // Handle error
+      debugPrint('Error deleting expense: $e');
     }
   }
 
@@ -160,7 +164,7 @@ class DatabaseHelper {
           .doc(updatedExpense['id'].toString())
           .update(updatedExpense);
     } catch (e) {
-      // Handle error
+      debugPrint('Error updating expense: $e');
     }
   }
 }
