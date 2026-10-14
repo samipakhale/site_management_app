@@ -74,7 +74,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 👉 Logout Confirmation Dialog with Session Cleared
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -155,7 +154,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPressed: () async {
                         Navigator.of(dialogContext).pop();
                         
-                        // 👉 Clear current user identifier for security
                         DatabaseHelper.currentUserIdentifier = null;
 
                         final prefs = await SharedPreferences.getInstance();

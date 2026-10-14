@@ -31,9 +31,21 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     try {
-      await DatabaseHelper.instance.registerUser(identifier, password);
+      bool success = await DatabaseHelper.instance.registerUser(identifier, password);
 
       if (!mounted) return;
+
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('User already exists with this ID! Try logging in.'),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -85,7 +97,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.withValues(alpha: 0.35),
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
                         blurRadius: 22,
                         offset: const Offset(0, 8),
                       ),
@@ -101,7 +113,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
                 const Text(
                   'Site Management',
                   style: TextStyle(
@@ -117,7 +128,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   style: TextStyle(color: Color(0xFF64748B), fontSize: 14, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 36),
-
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -142,18 +152,9 @@ class _SignupScreenState extends State<SignupScreen> {
                           filled: true,
                           fillColor: const Color(0xFFF8FAFC),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(color: Colors.grey.shade200),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade200)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5)),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -166,27 +167,14 @@ class _SignupScreenState extends State<SignupScreen> {
                           prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF64748B)),
                           suffixIcon: IconButton(
                             icon: Icon(_obscureText ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
-                            onPressed: () {
-                              setState(() {
-                                _obscureText = !_obscureText;
-                              });
-                            },
+                            onPressed: () => setState(() => _obscureText = !_obscureText),
                           ),
                           filled: true,
                           fillColor: const Color(0xFFF8FAFC),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(color: Colors.grey.shade200),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade200)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5)),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -198,10 +186,8 @@ class _SignupScreenState extends State<SignupScreen> {
                             backgroundColor: const Color(0xFF3B82F6),
                             foregroundColor: Colors.white,
                             elevation: 2,
-                            shadowColor: Colors.blue.withValues(alpha: 0.4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                            shadowColor: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           ),
                           onPressed: _signup,
                           child: const Text(
@@ -214,7 +200,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 28),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -228,11 +213,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       },
                       child: const Text(
                         'Log In',
-                        style: TextStyle(
-                          color: Color(0xFF3B82F6),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ),
                   ],

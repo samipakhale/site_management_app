@@ -42,7 +42,7 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Bulletproof Login (Direct Document Lookup - Works 100% After Re-install)
+  // 👉 Bulletproof Login with strict trim and match checking
   Future<bool> checkLogin(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();
@@ -55,9 +55,13 @@ class DatabaseHelper {
 
       if (docSnap.exists) {
         final data = docSnap.data();
-        if (data != null && data['password'].toString().trim() == cleanPass) {
-          currentUserIdentifier = cleanId;
-          return true;
+        if (data != null) {
+          String savedPass = data['password'].toString().trim();
+          
+          if (savedPass == cleanPass) {
+            currentUserIdentifier = cleanId;
+            return true;
+          }
         }
       }
       return false;

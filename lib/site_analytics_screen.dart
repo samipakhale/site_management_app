@@ -86,12 +86,11 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Total Summary Card
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)], // Fixed syntax error here
+                            colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -123,14 +122,11 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                         ),
                       ),
                       const SizedBox(height: 30),
-
                       const Text(
                         'Expense Distribution (Pie Chart)',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
                       ),
                       const SizedBox(height: 16),
-
-                      // Pie Chart Container
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -153,8 +149,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                                   pieTouchData: PieTouchData(
                                     touchCallback: (FlTouchEvent event, pieTouchResponse) {
                                       setState(() {
-                                        if (pieTouchResponse == null ||
-                                            pieTouchResponse.touchedSection == null) {
+                                        if (pieTouchResponse == null || pieTouchResponse.touchedSection == null) {
                                           touchedIndex = -1;
                                           return;
                                         }
@@ -170,8 +165,6 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                               ),
                             ),
                             const SizedBox(height: 20),
-                            
-                            // Indicators / Legend
                             Wrap(
                               spacing: 16,
                               runSpacing: 10,
