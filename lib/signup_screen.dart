@@ -13,6 +13,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
   bool _obscureText = true;
+  bool _isLoading = false;
 
   void _signup() async {
     String identifier = _identifierController.text.trim();
@@ -30,10 +31,31 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      await DatabaseHelper.instance.registerUser(identifier, password);
+      // 👉 Check if registration is successful (Local + Firebase check)
+      bool success = await DatabaseHelper.instance.registerUser(identifier, password);
 
       if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('User already exists or registration failed! Please log in.'),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -56,6 +78,10 @@ class _SignupScreenState extends State<SignupScreen> {
         MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
     } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
@@ -203,11 +229,17 @@ class _SignupScreenState extends State<SignupScreen> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          onPressed: _signup,
-                          child: const Text(
-                            'Sign Up',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
-                          ),
+                          onPressed: _isLoading ? null : _signup,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text(
+                                  'Sign Up',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                                ),
                         ),
                       ),
                     ],
