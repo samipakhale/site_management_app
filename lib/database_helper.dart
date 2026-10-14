@@ -15,7 +15,7 @@ class DatabaseHelper {
   
   static String? currentUserIdentifier;
 
-  // 👉 Bulletproof Registration (Email as Document ID)
+  // 👉 Bulletproof Registration (Email/Mobile as Direct Document ID)
   Future<bool> registerUser(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();
@@ -42,7 +42,7 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Bulletproof Login (Fixes Re-install Login Issue)
+  // 👉 Bulletproof Login (Direct Document Lookup - Works 100% After Re-install)
   Future<bool> checkLogin(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'database_helper.dart';
 import 'home_screen.dart';
 import 'signup_screen.dart';
@@ -21,77 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _obscureText = true;
   bool _isLoading = false;
-  bool _rememberMe = true;
-  
-  String? _savedIdentifier;
-  String? _savedPassword;
-  bool _hasSavedAccount = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSavedUser();
-  }
-
-  void _loadSavedUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? savedIdentifier = prefs.getString('userIdentifier');
-    String? savedPassword = prefs.getString('userPassword');
-
-    if (savedIdentifier != null && savedIdentifier.isNotEmpty && savedPassword != null) {
-      setState(() {
-        _savedIdentifier = savedIdentifier;
-        _savedPassword = savedPassword;
-        _hasSavedAccount = true; 
-      });
-    }
-  }
-
-  void _directLoginWithSavedAccount() async {
-    if (_savedIdentifier == null || _savedPassword == null) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      bool isValid = await DatabaseHelper.instance.checkLogin(_savedIdentifier!, _savedPassword!);
-
-      if (!mounted) return;
-
-      if (isValid) {
-        // 👉 Set current user identifier for Firestore session
-        DatabaseHelper.currentUserIdentifier = _savedIdentifier!.trim().toLowerCase();
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('isLoggedIn', true);
-
-        if (!mounted) return;
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      } else {
-        setState(() {
-          _isLoading = false;
-          _hasSavedAccount = false;
-        });
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Saved session expired. Please log in again.'),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
 
   void _login() async {
     String identifier = _identifierController.text.trim();
@@ -120,20 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (isValid) {
-        // 👉 Set current user identifier for Firestore session
         DatabaseHelper.currentUserIdentifier = identifier.trim().toLowerCase();
-
-        final prefs = await SharedPreferences.getInstance();
-        
-        if (_rememberMe) {
-          await prefs.setBool('isLoggedIn', true);
-          await prefs.setString('userIdentifier', identifier);
-          await prefs.setString('userPassword', password);
-        } else {
-          await prefs.setBool('isLoggedIn', false);
-          await prefs.remove('userIdentifier');
-          await prefs.remove('userPassword');
-        }
 
         if (!mounted) return;
 
@@ -284,157 +199,84 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: Column(
                     children: [
-                      if (_hasSavedAccount && _savedIdentifier != null) ...[
-                        InkWell(
-                          onTap: _isLoading ? null : _directLoginWithSavedAccount,
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
+                      TextField(
+                        controller: _identifierController,
+                        decoration: InputDecoration(
+                          hintText: 'Mobile number or Email',
+                          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                          prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF64748B)),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade200)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _passController,
+                        obscureText: _obscureText,
+                        decoration: InputDecoration(
+                          hintText: 'Password',
+                          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                          prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF64748B)),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscureText ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
+                            onPressed: () {
+                              setState(() {
+                                _obscureText = !_obscureText;
+                              });
+                            },
+                          ),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade200)),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5)),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: GestureDetector(
+                          onTap: _showChangePasswordDialog,
+                          child: const Text(
+                            'Change Password?',
+                            style: TextStyle(color: Color(0xFF3B82F6), fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3B82F6),
+                            foregroundColor: Colors.white,
+                            elevation: 2,
+                            shadowColor: Colors.blue.withValues(alpha: 0.4),
+                            shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.grey.shade200),
                             ),
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundColor: const Color(0xFF3B82F6).withValues(alpha: 0.1),
-                                  child: const Icon(Icons.person, color: Color(0xFF3B82F6)),
+                          ),
+                          onPressed: _isLoading ? null : _login,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text(
+                                  'Log In',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _savedIdentifier!,
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      const Text('Tap to login instantly', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
-                                _isLoading 
-                                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                                    : const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-                              ],
-                            ),
-                          ),
                         ),
-                        const SizedBox(height: 16),
-                        
-                        Center(
-                          child: GestureDetector(
-                            onTap: _showChangePasswordDialog,
-                            child: const Text(
-                              'Change Password?',
-                              style: TextStyle(color: Color(0xFF3B82F6), fontSize: 14, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ),
-
-                      ] else ...[
-                        TextField(
-                          controller: _identifierController,
-                          decoration: InputDecoration(
-                            hintText: 'Mobile number or Email',
-                            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                            prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF64748B)),
-                            filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade200)),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5)),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: _passController,
-                          obscureText: _obscureText,
-                          decoration: InputDecoration(
-                            hintText: 'Password',
-                            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                            prefixIcon: const Icon(Icons.lock_outline, color: Color(0xFF64748B)),
-                            suffixIcon: IconButton(
-                              icon: Icon(_obscureText ? Icons.visibility_off : Icons.visibility, color: Colors.grey),
-                              onPressed: () {
-                                setState(() {
-                                  _obscureText = !_obscureText;
-                                });
-                              },
-                            ),
-                            filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade200)),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5)),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                SizedBox(
-                                  height: 24,
-                                  width: 24,
-                                  child: Checkbox(
-                                    value: _rememberMe,
-                                    onChanged: (val) {
-                                      setState(() {
-                                        _rememberMe = val ?? true;
-                                      });
-                                    },
-                                    activeColor: const Color(0xFF3B82F6),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Text('Remember Me', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-                              ],
-                            ),
-                            GestureDetector(
-                              onTap: _showChangePasswordDialog,
-                              child: const Text(
-                                'Change Password?',
-                                style: TextStyle(color: Color(0xFF3B82F6), fontSize: 13, fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF3B82F6),
-                              foregroundColor: Colors.white,
-                              elevation: 2,
-                              shadowColor: Colors.blue.withValues(alpha: 0.4),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            onPressed: _isLoading ? null : _login,
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                : const Text(
-                                    'Log In',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
-                                  ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
