@@ -15,7 +15,7 @@ class DatabaseHelper {
   
   static String? currentUserIdentifier;
 
-  // 👉 Registration (Re-install nantar pn data secure thevayla)
+  // 👉 Bulletproof Registration (Email/Mobile as Direct Document ID)
   Future<bool> registerUser(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();
@@ -27,7 +27,7 @@ class DatabaseHelper {
       final docSnap = await docRef.get();
 
       if (docSnap.exists) {
-        return false; 
+        return false; // User already exists
       }
 
       await docRef.set({
@@ -42,7 +42,7 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Login (Offline asel tari local cache madhun check hoil)
+  // 👉 Bulletproof Login (Direct Document Lookup - Works 100% After Re-install)
   Future<bool> checkLogin(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();
@@ -51,16 +51,10 @@ class DatabaseHelper {
       if (cleanId.isEmpty || cleanPass.isEmpty) return false;
 
       final docRef = _firestore.collection('users').doc(cleanId);
-      
-      DocumentSnapshot docSnap;
-      try {
-        docSnap = await docRef.get(const GetOptions(source: Source.serverAndCache));
-      } catch (_) {
-        docSnap = await docRef.get(const GetOptions(source: Source.cache));
-      }
+      final docSnap = await docRef.get();
 
       if (docSnap.exists) {
-        final data = docSnap.data() as Map<String, dynamic>?;
+        final data = docSnap.data();
         if (data != null && data['password'].toString().trim() == cleanPass) {
           currentUserIdentifier = cleanId;
           return true;
@@ -91,24 +85,15 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Get Sites (Offline cache & Server support)
+  // 👉 Get Sites
   Future<List<Map<String, dynamic>>> getSites() async {
     if (currentUserIdentifier == null) return [];
     try {
-      QuerySnapshot snapshot;
-      try {
-        snapshot = await _firestore
-            .collection('users')
-            .doc(currentUserIdentifier)
-            .collection('sites')
-            .get(const GetOptions(source: Source.serverAndCache));
-      } catch (_) {
-        snapshot = await _firestore
-            .collection('users')
-            .doc(currentUserIdentifier)
-            .collection('sites')
-            .get(const GetOptions(source: Source.cache));
-      }
+      QuerySnapshot snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserIdentifier)
+          .collection('sites')
+          .get();
 
       return snapshot.docs.map((doc) {
         return {'name': doc['name'].toString()};
@@ -139,24 +124,13 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getExpenses(String siteName, String categoryName) async {
     if (currentUserIdentifier == null) return [];
     try {
-      QuerySnapshot snapshot;
-      try {
-        snapshot = await _firestore
-            .collection('users')
-            .doc(currentUserIdentifier)
-            .collection('sites')
-            .doc(siteName.trim())
-            .collection(categoryName.trim())
-            .get(const GetOptions(source: Source.serverAndCache));
-      } catch (_) {
-        snapshot = await _firestore
-            .collection('users')
-            .doc(currentUserIdentifier)
-            .collection('sites')
-            .doc(siteName.trim())
-            .collection(categoryName.trim())
-            .get(const GetOptions(source: Source.cache));
-      }
+      QuerySnapshot snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserIdentifier)
+          .collection('sites')
+          .doc(siteName.trim())
+          .collection(categoryName.trim())
+          .get();
 
       return snapshot.docs.map((doc) {
         return doc.data() as Map<String, dynamic>;
@@ -200,3 +174,4 @@ class DatabaseHelper {
     }
   }
 }
+

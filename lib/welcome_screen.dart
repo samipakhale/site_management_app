@@ -16,6 +16,7 @@ class WelcomeScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // 👉 Logo Container
                 Container(
                   width: 90,
                   height: 90,
@@ -28,7 +29,7 @@ class WelcomeScreen extends StatelessWidget {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
+                        color: Colors.blue.withValues(alpha: 0.35),
                         blurRadius: 22,
                         offset: const Offset(0, 8),
                       ),
@@ -44,6 +45,8 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
+                
+                // 👉 App Title
                 const Text(
                   'Site Management',
                   style: TextStyle(
@@ -54,6 +57,8 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
+                
+                // 👉 Subtitle / Tagline
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16.0),
                   child: Text(
@@ -66,7 +71,9 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 48), // 👉 ithe thodi space dili ahe button var yeण्यासाठी
+                
+                // 👉 Log In Button
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -75,7 +82,7 @@ class WelcomeScreen extends StatelessWidget {
                       backgroundColor: const Color(0xFF3B82F6),
                       foregroundColor: Colors.white,
                       elevation: 2,
-                      shadowColor: const Color(0xFF3B82F6).withValues(alpha: 0.4),
+                      shadowColor: Colors.blue.withValues(alpha: 0.4),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     onPressed: () {
@@ -91,6 +98,8 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
+                
+                // 👉 Create Account Button
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -120,3 +129,4 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 }
+

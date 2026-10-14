@@ -65,9 +65,16 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(
-          widget.siteName, 
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 20),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                widget.siteName, 
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 20),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -90,6 +97,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       ),
       body: Column(
         children: [
+          // Summary Banner
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(20),
@@ -121,6 +129,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               ],
             ),
           ),
+
+          // Categories List
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -129,7 +139,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                 final cat = _categories[index];
                 String catTitle = cat['title'];
                 double catTotal = _categoryTotals[catTitle] ?? 0.0;
-                Color catColor = cat['color'];
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 14),
@@ -159,7 +168,9 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                               categoryTitle: catTitle,
                             ),
                           ),
-                        ).then((_) => _loadSiteData());
+                        ).then((_) {
+                          _loadSiteData();
+                        });
                       },
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -168,10 +179,10 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: catColor.withValues(alpha: 0.1),
+                                color: cat['color'].withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: Icon(cat['icon'], color: catColor, size: 26),
+                              child: Icon(cat['icon'], color: cat['color'], size: 26),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -187,7 +198,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text('₹ $catTotal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: catColor)),
+                                Text('₹ $catTotal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: cat['color'])),
                                 const SizedBox(height: 6),
                                 const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                               ],
@@ -206,3 +217,4 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     );
   }
 }
+
