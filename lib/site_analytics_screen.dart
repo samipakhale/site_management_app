@@ -32,6 +32,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
   }
 
   Future<void> _loadAnalyticsData() async {
+    setState(() => _isLoading = true);
     List<String> categories = ['Material', 'Labour', 'Equipment', 'Vendor', 'Other Expenses'];
     Map<String, double> tempMap = {};
     double grandTotal = 0.0;
@@ -149,7 +150,8 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                                   pieTouchData: PieTouchData(
                                     touchCallback: (FlTouchEvent event, pieTouchResponse) {
                                       setState(() {
-                                        if (pieTouchResponse == null || pieTouchResponse.touchedSection == null) {
+                                        if (pieTouchResponse == null ||
+                                            pieTouchResponse.touchedSection == null) {
                                           touchedIndex = -1;
                                           return;
                                         }

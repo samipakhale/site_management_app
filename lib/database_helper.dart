@@ -15,7 +15,7 @@ class DatabaseHelper {
   
   static String? currentUserIdentifier;
 
-  // 👉 Bulletproof Registration (Email/Mobile as Direct Document ID)
+  // 👉 Registration (Re-install nantar pn data secure thevayla)
   Future<bool> registerUser(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();
@@ -27,7 +27,7 @@ class DatabaseHelper {
       final docSnap = await docRef.get();
 
       if (docSnap.exists) {
-        return false; // User already exists
+        return false; 
       }
 
       await docRef.set({
@@ -42,7 +42,7 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Bulletproof Login with strict trim and match checking
+  // 👉 Login (Offline asel tari local cache madhun check hoil)
   Future<bool> checkLogin(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();
@@ -51,17 +51,19 @@ class DatabaseHelper {
       if (cleanId.isEmpty || cleanPass.isEmpty) return false;
 
       final docRef = _firestore.collection('users').doc(cleanId);
-      final docSnap = await docRef.get();
+      
+      DocumentSnapshot docSnap;
+      try {
+        docSnap = await docRef.get(const GetOptions(source: Source.serverAndCache));
+      } catch (_) {
+        docSnap = await docRef.get(const GetOptions(source: Source.cache));
+      }
 
       if (docSnap.exists) {
-        final data = docSnap.data();
-        if (data != null) {
-          String savedPass = data['password'].toString().trim();
-          
-          if (savedPass == cleanPass) {
-            currentUserIdentifier = cleanId;
-            return true;
-          }
+        final data = docSnap.data() as Map<String, dynamic>?;
+        if (data != null && data['password'].toString().trim() == cleanPass) {
+          currentUserIdentifier = cleanId;
+          return true;
         }
       }
       return false;
@@ -89,15 +91,24 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Get Sites
+  // 👉 Get Sites (Offline cache & Server support)
   Future<List<Map<String, dynamic>>> getSites() async {
     if (currentUserIdentifier == null) return [];
     try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('users')
-          .doc(currentUserIdentifier)
-          .collection('sites')
-          .get();
+      QuerySnapshot snapshot;
+      try {
+        snapshot = await _firestore
+            .collection('users')
+            .doc(currentUserIdentifier)
+            .collection('sites')
+            .get(const GetOptions(source: Source.serverAndCache));
+      } catch (_) {
+        snapshot = await _firestore
+            .collection('users')
+            .doc(currentUserIdentifier)
+            .collection('sites')
+            .get(const GetOptions(source: Source.cache));
+      }
 
       return snapshot.docs.map((doc) {
         return {'name': doc['name'].toString()};
@@ -128,13 +139,24 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getExpenses(String siteName, String categoryName) async {
     if (currentUserIdentifier == null) return [];
     try {
-      QuerySnapshot snapshot = await _firestore
-          .collection('users')
-          .doc(currentUserIdentifier)
-          .collection('sites')
-          .doc(siteName.trim())
-          .collection(categoryName.trim())
-          .get();
+      QuerySnapshot snapshot;
+      try {
+        snapshot = await _firestore
+            .collection('users')
+            .doc(currentUserIdentifier)
+            .collection('sites')
+            .doc(siteName.trim())
+            .collection(categoryName.trim())
+            .get(const GetOptions(source: Source.serverAndCache));
+      } catch (_) {
+        snapshot = await _firestore
+            .collection('users')
+            .doc(currentUserIdentifier)
+            .collection('sites')
+            .doc(siteName.trim())
+            .collection(categoryName.trim())
+            .get(const GetOptions(source: Source.cache));
+      }
 
       return snapshot.docs.map((doc) {
         return doc.data() as Map<String, dynamic>;
