@@ -17,7 +17,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   double _totalSiteExpense = 0.0;
   bool _isLoadingTotal = true;
   
-  // 👉 Pratyek category chi total store karnyasathi map
   final Map<String, double> _categoryTotals = {};
 
   final List<Map<String, dynamic>> _categories = const [
@@ -34,7 +33,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     _loadSiteData();
   }
 
-  // 👉 Sarv category ani grand total ekatra load karnyacha function
   Future<void> _loadSiteData() async {
     double grandTotal = 0.0;
     Map<String, double> tempTotals = {};
@@ -75,10 +73,10 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF1E293B)),
         actions: [
-          // 👉 Analytics Button ithe add kela ahe
+          // 👉 Explicitly visible Analytics / Pie Chart Icon Button
           IconButton(
-            icon: const Icon(Icons.bar_chart_rounded, color: Color(0xFF3B82F6), size: 26),
-            tooltip: 'View Analytics & Charts',
+            icon: const Icon(Icons.pie_chart_rounded, color: Color(0xFF3B82F6), size: 28),
+            tooltip: 'View Analytics & Pie Chart',
             onPressed: () {
               Navigator.push(
                 context,
@@ -88,11 +86,12 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               );
             },
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
         children: [
-          // 👉 Top Modern Gradient Summary Banner (Total Site Expense)
+          // Summary Banner
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(20),
@@ -103,13 +102,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.withValues(alpha: 0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -123,11 +115,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                   ],
                 ),
                 _isLoadingTotal
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : Text(
                         '₹ $_totalSiteExpense',
                         style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF4ADE80)),
@@ -136,7 +124,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             ),
           ),
 
-          // 👉 Categories List with Individual Totals
+          // Categories List
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -166,7 +154,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                       borderRadius: BorderRadius.circular(16),
                       onTap: () {
                         HapticFeedback.lightImpact();
-
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -186,19 +173,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    cat['color'].withValues(alpha: 0.2),
-                                    cat['color'].withValues(alpha: 0.05),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
+                                color: cat['color'].withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: cat['color'].withValues(alpha: 0.3),
-                                  width: 1.5,
-                                ),
                               ),
                               child: Icon(cat['icon'], color: cat['color'], size: 26),
                             ),
@@ -207,30 +183,16 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    catTitle,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
-                                  ),
+                                  Text(catTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B))),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    cat['subtitle'],
-                                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                                  ),
+                                  Text(cat['subtitle'], style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
                                 ],
                               ),
                             ),
-                            // 👉 Pratyek category chi total amount side la disel
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text(
-                                  '₹ $catTotal',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                    color: cat['color'],
-                                  ),
-                                ),
+                                Text('₹ $catTotal', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: cat['color'])),
                                 const SizedBox(height: 6),
                                 const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                               ],

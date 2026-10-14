@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -15,11 +15,13 @@ class DatabaseHelper {
   
   static String? currentUserIdentifier;
 
-  // 👉 User Registration with direct document ID
+  // 👉 Bulletproof Registration (Email as Document ID)
   Future<bool> registerUser(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();
       String cleanPass = password.trim();
+
+      if (cleanId.isEmpty || cleanPass.isEmpty) return false;
 
       final docRef = _firestore.collection('users').doc(cleanId);
       final docSnap = await docRef.get();
@@ -34,34 +36,38 @@ class DatabaseHelper {
         'createdAt': FieldValue.serverTimestamp(),
       });
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Registration Error: $e');
       return false;
     }
   }
 
-  // 👉 Check Login from Firestore
+  // 👉 Bulletproof Login (Fixes Re-install Login Issue)
   Future<bool> checkLogin(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();
       String cleanPass = password.trim();
+
+      if (cleanId.isEmpty || cleanPass.isEmpty) return false;
 
       final docRef = _firestore.collection('users').doc(cleanId);
       final docSnap = await docRef.get();
 
       if (docSnap.exists) {
         final data = docSnap.data();
-        if (data != null && data['password'] == cleanPass) {
+        if (data != null && data['password'].toString().trim() == cleanPass) {
           currentUserIdentifier = cleanId;
           return true;
         }
       }
       return false;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Login Error: $e');
       return false;
     }
   }
 
-  // 👉 Insert Site in Firestore under User
+  // 👉 Insert Site
   Future<void> insertSite(String name) async {
     if (currentUserIdentifier == null) return;
     try {
@@ -75,11 +81,11 @@ class DatabaseHelper {
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      debugPrint('Error inserting site: $e');
+      debugPrint('Site Insert Error: $e');
     }
   }
 
-  // 👉 Get Sites from Firestore for User
+  // 👉 Get Sites
   Future<List<Map<String, dynamic>>> getSites() async {
     if (currentUserIdentifier == null) return [];
     try {
@@ -97,7 +103,7 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Add Expense to Firestore
+  // 👉 Add Expense
   Future<void> addExpense(String siteName, String categoryName, Map<String, dynamic> expenseData) async {
     if (currentUserIdentifier == null) return;
     try {
@@ -110,11 +116,11 @@ class DatabaseHelper {
           .doc(expenseData['id'].toString())
           .set(expenseData);
     } catch (e) {
-      debugPrint('Error adding expense: $e');
+      debugPrint('Add Expense Error: $e');
     }
   }
 
-  // 👉 Get Expenses from Firestore
+  // 👉 Get Expenses
   Future<List<Map<String, dynamic>>> getExpenses(String siteName, String categoryName) async {
     if (currentUserIdentifier == null) return [];
     try {
@@ -134,7 +140,7 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Delete Expense by ID from Firestore
+  // 👉 Delete Expense
   Future<void> deleteExpenseById(String siteName, String categoryName, int id) async {
     if (currentUserIdentifier == null) return;
     try {
@@ -147,11 +153,11 @@ class DatabaseHelper {
           .doc(id.toString())
           .delete();
     } catch (e) {
-      debugPrint('Error deleting expense: $e');
+      debugPrint('Delete Error: $e');
     }
   }
 
-  // 👉 Update Expense in Firestore
+  // 👉 Update Expense
   Future<void> updateExpense(String siteName, String categoryName, Map<String, dynamic> updatedExpense) async {
     if (currentUserIdentifier == null) return;
     try {
@@ -164,7 +170,7 @@ class DatabaseHelper {
           .doc(updatedExpense['id'].toString())
           .update(updatedExpense);
     } catch (e) {
-      debugPrint('Error updating expense: $e');
+      debugPrint('Update Error: $e');
     }
   }
 }

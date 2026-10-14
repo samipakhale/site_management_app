@@ -15,13 +15,12 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
   bool _isLoading = true;
   double _totalExpense = 0.0;
   
-  // 👉 Fixed to 'Other' to match CategoryDetailScreen
   Map<String, double> _categoryExpenses = {
     'Material': 0.0,
     'Labour': 0.0,
     'Equipment': 0.0,
     'Vendor': 0.0,
-    'Other': 0.0,
+    'Other Expenses': 0.0,
   };
 
   int touchedIndex = -1;
@@ -33,7 +32,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
   }
 
   Future<void> _loadAnalyticsData() async {
-    List<String> categories = ['Material', 'Labour', 'Equipment', 'Vendor', 'Other'];
+    List<String> categories = ['Material', 'Labour', 'Equipment', 'Vendor', 'Other Expenses'];
     Map<String, double> tempMap = {};
     double grandTotal = 0.0;
 
@@ -87,18 +86,19 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Total Summary Card
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+                            colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)], // Fixed syntax error here
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.blue.withValues(alpha: 0.2),
+                              color: Colors.black.withValues(alpha: 0.03),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -130,6 +130,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                       ),
                       const SizedBox(height: 16),
 
+                      // Pie Chart Container
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -170,6 +171,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                             ),
                             const SizedBox(height: 20),
                             
+                            // Indicators / Legend
                             Wrap(
                               spacing: 16,
                               runSpacing: 10,
@@ -179,7 +181,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                                 makeIndicator(Colors.blue, 'Labour', _categoryExpenses['Labour']!),
                                 makeIndicator(Colors.green, 'Equipment', _categoryExpenses['Equipment']!),
                                 makeIndicator(Colors.purple, 'Vendor', _categoryExpenses['Vendor']!),
-                                makeIndicator(Colors.redAccent, 'Other', _categoryExpenses['Other']!),
+                                makeIndicator(Colors.redAccent, 'Other Expenses', _categoryExpenses['Other Expenses']!),
                               ],
                             ),
                           ],
@@ -197,7 +199,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
       const MapEntry('Labour', Colors.blue),
       const MapEntry('Equipment', Colors.green),
       const MapEntry('Vendor', Colors.purple),
-      const MapEntry('Other', Colors.redAccent),
+      const MapEntry('Other Expenses', Colors.redAccent),
     ];
 
     return categories.asMap().map((index, entry) {
