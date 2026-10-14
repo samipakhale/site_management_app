@@ -5,6 +5,14 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+dependencies {
+  // Import the Firebase BoM
+  implementation(platform("com.google.firebase:firebase-bom:35.0.0"))
+
+
+  
+}
+
 android {
     namespace = "com.example.site_management_app"
     compileSdk = flutter.compileSdkVersion

@@ -65,12 +65,13 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
+        // 👉 Title ला Expanded दिल्यामुळे साईटचे नाव ऍडजस्ट होईल आणि पाई चार्ट आयकॉन कधीच लपणार नाही
         title: Row(
           children: [
             Expanded(
               child: Text(
                 widget.siteName, 
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 20),
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 18),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -80,6 +81,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF1E293B)),
         actions: [
+          // 👉 Explicitly visible Analytics / Pie Chart Icon Button
           IconButton(
             icon: const Icon(Icons.pie_chart_rounded, color: Color(0xFF3B82F6), size: 28),
             tooltip: 'View Analytics & Pie Chart',
@@ -217,4 +219,3 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     );
   }
 }
-
