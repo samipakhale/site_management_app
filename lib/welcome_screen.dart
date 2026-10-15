@@ -16,7 +16,6 @@ class WelcomeScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // 👉 Logo Container
                 Container(
                   width: 90,
                   height: 90,
@@ -45,8 +44,6 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                
-                // 👉 App Title
                 const Text(
                   'Site Management',
                   style: TextStyle(
@@ -57,8 +54,6 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                
-                // 👉 Subtitle / Tagline
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16.0),
                   child: Text(
@@ -71,9 +66,7 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 48), // 👉 ithe thodi space dili ahe button var yeण्यासाठी
-                
-                // 👉 Log In Button
+                const SizedBox(height: 48),
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -98,8 +91,6 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                
-                // 👉 Create Account Button
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -129,4 +120,3 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 }
-

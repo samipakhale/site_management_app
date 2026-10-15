@@ -14,7 +14,7 @@ class SiteAnalyticsScreen extends StatefulWidget {
 class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
   bool _isLoading = true;
   double _totalExpense = 0.0;
-  
+
   Map<String, double> _categoryExpenses = {
     'Material': 0.0,
     'Labour': 0.0,
@@ -86,12 +86,11 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Total Summary Card
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)], // Fixed syntax error here
+                            colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -130,7 +129,6 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Pie Chart Container
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -170,8 +168,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                               ),
                             ),
                             const SizedBox(height: 20),
-                            
-                            // Indicators / Legend
+
                             Wrap(
                               spacing: 16,
                               runSpacing: 10,
@@ -243,4 +240,3 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
     );
   }
 }
-

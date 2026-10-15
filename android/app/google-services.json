@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "1074623392506",
-    "project_id": "sitemanagementapplication",
-    "storage_bucket": "sitemanagementapplication.firebasestorage.app"
+    "project_number": "1058389031724",
+    "project_id": "site-management-2af18",
+    "storage_bucket": "site-management-2af18.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1074623392506:android:9dc917eb997560873f7743",
+        "mobilesdk_app_id": "1:1058389031724:android:ea4140bbc03f64d9298a89",
         "android_client_info": {
           "package_name": "com.example.site_management_app"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBPZd9uNtptnOAumX9agOrKvuIkF98KRrk"
+          "current_key": "AIzaSyCvnO-r4stlTcEl7F6bVIEDTnshhIQB3W8"
         }
       ],
       "services": {

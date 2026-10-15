@@ -1,5 +1,5 @@
 name: site_management_app
-description: "A new Flutter project."
+description: "Site Management Application without Firebase"
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -10,17 +10,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  sqflite: ^2.3.0
-  sqflite_common_ffi: ^2.3.3
-  path: ^1.8.3
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
   shared_preferences: ^2.2.2
   pdf: ^3.10.4
   printing: ^5.11.0
-  fl_chart: ^0.68.0  # Charts sathi package
-  firebase_core: ^2.24.2
-  firebase_auth: ^4.17.8
-  cloud_firestore: ^4.15.8
-
+  fl_chart: ^0.68.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter

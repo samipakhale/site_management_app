@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; 
-import 'database_helper.dart'; 
-import 'category_detail_screen.dart'; 
+import 'package:flutter/services.dart';
+import 'database_helper.dart';
+import 'category_detail_screen.dart';
 import 'site_analytics_screen.dart';
 
 class SiteDetailScreen extends StatefulWidget {
@@ -16,7 +16,7 @@ class SiteDetailScreen extends StatefulWidget {
 class _SiteDetailScreenState extends State<SiteDetailScreen> {
   double _totalSiteExpense = 0.0;
   bool _isLoadingTotal = true;
-  
+
   final Map<String, double> _categoryTotals = {};
 
   final List<Map<String, dynamic>> _categories = const [
@@ -41,11 +41,11 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       String catTitle = cat['title'];
       final expenses = await DatabaseHelper.instance.getExpenses(widget.siteName, catTitle);
       double catTotal = 0.0;
-      
+
       for (var exp in expenses) {
         catTotal += double.tryParse(exp['amount'].toString()) ?? 0.0;
       }
-      
+
       tempTotals[catTitle] = catTotal;
       grandTotal += catTotal;
     }
@@ -65,11 +65,16 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        // 👉 Row काढून थेट Text दिल्याने actions मधील आयकॉन कधीच लपणार नाही
-        title: Text(
-          widget.siteName, 
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 18),
-          overflow: TextOverflow.ellipsis,
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                widget.siteName,
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 20),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -92,7 +97,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       ),
       body: Column(
         children: [
-          // Summary Banner
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(20),
@@ -124,8 +128,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               ],
             ),
           ),
-
-          // Categories List
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),

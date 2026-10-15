@@ -13,16 +13,41 @@ class CategoryDetailScreen extends StatefulWidget {
   State<CategoryDetailScreen> createState() => _CategoryDetailScreenState();
 }
 
-class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
+class _CategoryDetailScreenState extends State<CategoryDetailScreen> with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> _expenses = [];
   List<Map<String, dynamic>> _filteredExpenses = [];
   bool _isLoading = true;
-  
+
+  TabController? _tabController;
   final TextEditingController _searchController = TextEditingController();
+
+  // Monthly Report Filters
+  String _selectedMonth = DateTime.now().month.toString().padLeft(2, '0');
+  String _selectedYear = DateTime.now().year.toString();
+
+  final List<Map<String, String>> _monthsList = [
+    {'val': '01', 'name': 'January'},
+    {'val': '02', 'name': 'February'},
+    {'val': '03', 'name': 'March'},
+    {'val': '04', 'name': 'April'},
+    {'val': '05', 'name': 'May'},
+    {'val': '06', 'name': 'June'},
+    {'val': '07', 'name': 'July'},
+    {'val': '08', 'name': 'August'},
+    {'val': '09', 'name': 'September'},
+    {'val': '10', 'name': 'October'},
+    {'val': '11', 'name': 'November'},
+    {'val': '12', 'name': 'December'},
+  ];
+
+  final List<String> _yearsList = ['2025', '2026', '2027', '2028'];
 
   @override
   void initState() {
     super.initState();
+    if (widget.categoryTitle.toLowerCase().contains('labour')) {
+      _tabController = TabController(length: 2, vsync: this);
+    }
     _loadExpenses();
     _searchController.addListener(_filterSearch);
   }
@@ -30,6 +55,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
@@ -63,7 +89,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   final List<String> _labourPaymentStatusOptions = ['Paid', 'Pending'];
   final List<String> _otherCategoryOptions = ['Tea / Nashta', 'Transport / Travel', 'Stationery', 'Miscellaneous'];
   final List<String> _paymentModeOptions = ['Cash', 'Online / UPI'];
-  
+
   String? _selectedSubMaterial;
   String? _selectedSubEquipment;
   String? _selectedEquipmentUnit;
@@ -96,6 +122,55 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     }
   }
 
+  Map<String, Map<String, dynamic>> _getMonthlyLabourSummary() {
+    Map<String, Map<String, dynamic>> summary = {};
+
+    var monthFiltered = _expenses.where((exp) {
+      String dateStr = exp['date'] ?? '';
+      if (dateStr.length >= 7) {
+        String yearPart = dateStr.substring(0, 4);
+        String monthPart = dateStr.substring(5, 7);
+        return yearPart == _selectedYear && monthPart == _selectedMonth;
+      }
+      return false;
+    }).toList();
+
+    for (var entry in monthFiltered) {
+      String workerName = (entry['title'] != null && entry['title'].toString().trim().isNotEmpty)
+          ? entry['title']
+          : 'Labour';
+      String desc = entry['desc'] ?? '';
+      double amount = double.tryParse(entry['amount'].toString()) ?? 0.0;
+
+      if (!summary.containsKey(workerName)) {
+        summary[workerName] = {
+          'name': workerName,
+          'fullDays': 0,
+          'halfDays': 0,
+          'absent': 0,
+          'totalPaid': 0.0,
+          'totalPending': 0.0,
+        };
+      }
+
+      if (desc.contains('Present (Full Day)')) {
+        summary[workerName]!['fullDays'] = (summary[workerName]!['fullDays'] as int) + 1;
+      } else if (desc.contains('Half Day')) {
+        summary[workerName]!['halfDays'] = (summary[workerName]!['halfDays'] as int) + 1;
+      } else if (desc.contains('Absent')) {
+        summary[workerName]!['absent'] = (summary[workerName]!['absent'] as int) + 1;
+      }
+
+      if (desc.contains('Pay: Paid')) {
+        summary[workerName]!['totalPaid'] = (summary[workerName]!['totalPaid'] as double) + amount;
+      } else {
+        summary[workerName]!['totalPending'] = (summary[workerName]!['totalPending'] as double) + amount;
+      }
+    }
+
+    return summary;
+  }
+
   Future<void> _generateAndSharePdf() async {
     final pdf = pw.Document();
     double totalAmount = _calculateTotalAmount();
@@ -106,7 +181,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Construction Expense Report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+              pw.Text('${widget.categoryTitle} Expense Report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 8),
               pw.Text('Site Name: ${widget.siteName}', style: const pw.TextStyle(fontSize: 14)),
               pw.Text('Category: ${widget.categoryTitle}', style: const pw.TextStyle(fontSize: 14)),
@@ -140,18 +215,19 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
 
   void _showAddOrEditDialog({Map<String, dynamic>? existingExpense}) {
     bool isEditing = existingExpense != null;
+    String cat = widget.categoryTitle.toLowerCase();
 
-    if (widget.categoryTitle == 'Material') {
+    if (cat.contains('material')) {
       _selectedSubMaterial = isEditing ? existingExpense['title'] : _materialOptions.first;
-    } else if (widget.categoryTitle == 'Equipment') {
+    } else if (cat.contains('equipment')) {
       _selectedSubEquipment = isEditing ? existingExpense['title'] : _equipmentOptions.first;
       _selectedEquipmentUnit = _equipmentUnitOptions.first;
-    } else if (widget.categoryTitle == 'Vendor') {
+    } else if (cat.contains('vendor')) {
       _selectedVendorStatus = _vendorStatusOptions.first;
-    } else if (widget.categoryTitle == 'Labour') {
+    } else if (cat.contains('labour')) {
       _selectedLabourStatus = _labourStatusOptions.first;
       _selectedLabourPaymentStatus = _labourPaymentStatusOptions.first;
-    } else if (widget.categoryTitle == 'Other') {
+    } else if (cat.contains('other') || cat.contains('expense')) {
       _selectedOtherCategory = _otherCategoryOptions.first;
       _selectedPaymentMode = _paymentModeOptions.first;
     }
@@ -159,18 +235,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     final TextEditingController titleController = TextEditingController(text: isEditing ? existingExpense['title'] : '');
     final TextEditingController qtyController = TextEditingController();
     final TextEditingController amountController = TextEditingController(text: isEditing ? existingExpense['amount'].toString() : '');
-    final TextEditingController descController = TextEditingController(text: isEditing ? existingExpense['desc'] : '');
+    final TextEditingController descController = TextEditingController();
 
-    if (isEditing && existingExpense['desc'].toString().contains('Unit:')) {
-      try {
-        var parts = existingExpense['desc'].toString().split('|');
-        if (parts.isNotEmpty) {
-          qtyController.text = parts[0].replaceAll('Unit:', '').trim();
-          if (parts.length > 1) {
-            descController.text = parts[1].trim();
-          }
-        }
-      } catch (_) {}
+    if (isEditing && existingExpense['desc'] != null) {
+      descController.text = existingExpense['desc'];
     }
 
     DateTime selectedDate = isEditing && existingExpense['date'] != null
@@ -191,15 +259,14 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Text(
-              isEditing ? '${widget.categoryTitle} Edit' : '${widget.categoryTitle} Add New Expense', 
+              isEditing ? '${widget.categoryTitle} Edit' : '${widget.categoryTitle} Add New Expense',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF1E293B)),
             ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 👉 Material Dropdown
-                  if (widget.categoryTitle == 'Material') ...[
+                  if (cat.contains('material')) ...[
                     DropdownButtonFormField<String>(
                       initialValue: _selectedSubMaterial,
                       decoration: InputDecoration(
@@ -214,9 +281,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       onChanged: (String? val) => dialogSetState(() => _selectedSubMaterial = val),
                     ),
                     const SizedBox(height: 14),
-                  ] 
-                  // 👉 Equipment Dropdown
-                  else if (widget.categoryTitle == 'Equipment') ...[
+                  ] else if (cat.contains('equipment')) ...[
                     DropdownButtonFormField<String>(
                       initialValue: _selectedSubEquipment,
                       decoration: InputDecoration(
@@ -231,9 +296,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       onChanged: (String? val) => dialogSetState(() => _selectedSubEquipment = val),
                     ),
                     const SizedBox(height: 14),
-                  ] 
-                  // 👉 Labour Name & Status Dropdowns
-                  else if (widget.categoryTitle == 'Labour') ...[
+                  ] else if (cat.contains('labour')) ...[
                     TextField(
                       controller: titleController,
                       decoration: InputDecoration(
@@ -272,9 +335,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       onChanged: (String? val) => dialogSetState(() => _selectedLabourPaymentStatus = val),
                     ),
                     const SizedBox(height: 14),
-                  ] 
-                  // 👉 Vendor Name & Status
-                  else if (widget.categoryTitle == 'Vendor') ...[
+                  ] else if (cat.contains('vendor')) ...[
                     TextField(
                       controller: titleController,
                       decoration: InputDecoration(
@@ -299,9 +360,17 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       onChanged: (String? val) => dialogSetState(() => _selectedVendorStatus = val),
                     ),
                     const SizedBox(height: 14),
-                  ] 
-                  // 👉 Other Expenses Category & Title
-                  else if (widget.categoryTitle == 'Other') ...[
+                  ] else if (cat.contains('other') || cat.contains('expense')) ...[
+                    TextField(
+                      controller: titleController,
+                      decoration: InputDecoration(
+                        labelText: 'Expense Name (Item Title)',
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedOtherCategory,
                       decoration: InputDecoration(
@@ -316,20 +385,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       onChanged: (String? val) => dialogSetState(() => _selectedOtherCategory = val),
                     ),
                     const SizedBox(height: 14),
-                    TextField(
-                      controller: titleController,
-                      decoration: InputDecoration(
-                        labelText: 'Expense name (Item Title)',
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
                   ],
 
-                  // 👉 Material Quantity Field
-                  if (widget.categoryTitle == 'Material') ...[
+                  if (cat.contains('material')) ...[
                     TextField(
                       controller: qtyController,
                       decoration: InputDecoration(
@@ -342,8 +400,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     const SizedBox(height: 14),
                   ],
 
-                  // 👉 Equipment Quantity & Clean Unit Dropdown Fix
-                  if (widget.categoryTitle == 'Equipment') ...[
+                  if (cat.contains('equipment')) ...[
                     TextField(
                       controller: qtyController,
                       keyboardType: TextInputType.number,
@@ -371,7 +428,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     const SizedBox(height: 14),
                   ],
 
-                  // 👉 Amount Field
                   TextField(
                     controller: amountController,
                     keyboardType: TextInputType.number,
@@ -384,8 +440,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // 👉 Payment Mode for Other Expenses
-                  if (widget.categoryTitle == 'Other') ...[
+                  if (cat.contains('other') || cat.contains('expense')) ...[
                     DropdownButtonFormField<String>(
                       initialValue: _selectedPaymentMode,
                       decoration: InputDecoration(
@@ -402,7 +457,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     const SizedBox(height: 14),
                   ],
 
-                  // 👉 Description Field
                   TextField(
                     controller: descController,
                     decoration: InputDecoration(
@@ -414,7 +468,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // 👉 Date Picker Container
                   InkWell(
                     onTap: () async {
                       final DateTime? picked = await showDatePicker(
@@ -453,7 +506,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // 👉 Time Picker Container
                   InkWell(
                     onTap: () async {
                       final TimeOfDay? picked = await showTimePicker(
@@ -504,35 +556,31 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 ),
                 onPressed: () async {
-                  // 👉 Clean title setup (Only pure name/title)
-                  String expenseTitle;
-                  if (widget.categoryTitle == 'Material') {
-                    expenseTitle = _selectedSubMaterial ?? 'Material';
-                  } else if (widget.categoryTitle == 'Equipment') {
-                    expenseTitle = _selectedSubEquipment ?? 'Equipment';
-                  } else if (widget.categoryTitle == 'Labour') {
-                    expenseTitle = titleController.text.trim();
-                  } else if (widget.categoryTitle == 'Vendor') {
-                    expenseTitle = titleController.text.trim();
-                  } else if (widget.categoryTitle == 'Other') {
-                    expenseTitle = titleController.text.trim();
-                  } else {
-                    expenseTitle = titleController.text.trim();
+                  String expenseTitle = titleController.text.trim();
+                  if (expenseTitle.isEmpty) {
+                    if (cat.contains('material')) {
+                      expenseTitle = _selectedSubMaterial ?? 'Material';
+                    } else if (cat.contains('equipment')) {
+                      expenseTitle = _selectedSubEquipment ?? 'Equipment';
+                    } else if (cat.contains('other') || cat.contains('expense')) {
+                      expenseTitle = _selectedOtherCategory ?? 'Other Expense';
+                    } else {
+                      expenseTitle = widget.categoryTitle;
+                    }
                   }
 
                   if (amountController.text.trim().isNotEmpty) {
-                    // 👉 Store status details nicely inside description or hidden info if needed
                     String detailsPrefix = '';
-                    if (widget.categoryTitle == 'Labour') {
+                    if (cat.contains('labour')) {
                       detailsPrefix = 'Status: ${_selectedLabourStatus ?? 'Present'} | Pay: ${_selectedLabourPaymentStatus ?? 'Pending'} | ';
-                    } else if (widget.categoryTitle == 'Vendor') {
+                    } else if (cat.contains('vendor')) {
                       detailsPrefix = 'Status: ${_selectedVendorStatus ?? 'Pending'} | ';
-                    } else if (widget.categoryTitle == 'Other' && _selectedOtherCategory != null) {
+                    } else if ((cat.contains('other') || cat.contains('expense')) && _selectedOtherCategory != null) {
                       detailsPrefix = 'Category: $_selectedOtherCategory | ';
                     }
 
                     String fullDesc = '';
-                    if (widget.categoryTitle == 'Equipment' && qtyController.text.trim().isNotEmpty) {
+                    if (cat.contains('equipment') && qtyController.text.trim().isNotEmpty) {
                       fullDesc = '$detailsPrefix Qty: ${qtyController.text.trim()} ${_selectedEquipmentUnit ?? 'Hrs'} | ${descController.text.trim()}';
                     } else if (qtyController.text.trim().isNotEmpty) {
                       fullDesc = '$detailsPrefix Unit: ${qtyController.text.trim()} | ${descController.text.trim()}';
@@ -540,7 +588,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       fullDesc = '$detailsPrefix${descController.text.trim()}';
                     }
 
-                    if (widget.categoryTitle == 'Other' && _selectedPaymentMode != null) {
+                    if ((cat.contains('other') || cat.contains('expense')) && _selectedPaymentMode != null) {
                       fullDesc = 'Mode: $_selectedPaymentMode | $fullDesc';
                     }
 
@@ -559,7 +607,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     } else {
                       await DatabaseHelper.instance.addExpense(widget.siteName, widget.categoryTitle, expenseData);
                     }
-                    
+
                     if (ctx.mounted) {
                       Navigator.of(ctx).pop();
                     }
@@ -577,9 +625,379 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     );
   }
 
+  Widget _buildRecordsView() {
+    double totalAmount = _calculateTotalAmount();
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withValues(alpha: 0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Total Entries', style: TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
+                  Text('${_filteredExpenses.length}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                ],
+              ),
+              Container(height: 35, width: 1, color: Colors.white24),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text('Total Expense (Total)', style: TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
+                  Text('₹ $totalAmount', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF4ADE80))),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search by entry name or details...',
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              prefixIcon: const Icon(Icons.search, color: Color(0xFF64748B)),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade200)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: _filteredExpenses.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      const Text('No entries found.', style: TextStyle(color: Color(0xFF64748B), fontSize: 15, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  itemCount: _filteredExpenses.length,
+                  itemBuilder: (context, index) {
+                    final exp = _filteredExpenses[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(14),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () => _showAddOrEditDialog(existingExpense: exp),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEFF6FF),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.receipt, color: Color(0xFF3B82F6), size: 20),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        (exp['title'] != null && exp['title'].toString().trim().isNotEmpty && exp['title'].toString() != 'null')
+                                            ? exp['title']
+                                            : widget.categoryTitle,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      if (exp['desc'] != null && exp['desc'].toString().isNotEmpty)
+                                        Text(exp['desc'], style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        exp['date'],
+                                        style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      '₹ ${exp['amount']}',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF16A34A)),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    InkWell(
+                                      onTap: () async {
+                                        bool? confirm = await showDialog(
+                                          context: context,
+                                          builder: (ctx) => AlertDialog(
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                            title: const Text('Delete entry?'),
+                                            content: const Text('This entry will be deleted permanently.'),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Nahi')),
+                                              TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm == true) {
+                                          _deleteExpense(exp['id']);
+                                        }
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Icon(Icons.delete_outline, color: Colors.red.shade400, size: 18),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMonthlyReportView() {
+    var summaryMap = _getMonthlyLabourSummary();
+    var workersList = summaryMap.values.toList();
+
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2))],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _selectedMonth,
+                  decoration: InputDecoration(
+                    labelText: 'Month',
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: _monthsList.map((m) => DropdownMenuItem(value: m['val'], child: Text(m['name']!, style: const TextStyle(fontWeight: FontWeight.w600)))).toList(),
+                  onChanged: (val) => setState(() => _selectedMonth = val!),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: _selectedYear,
+                  decoration: InputDecoration(
+                    labelText: 'Year',
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: _yearsList.map((y) => DropdownMenuItem(value: y, child: Text(y, style: const TextStyle(fontWeight: FontWeight.w600)))).toList(),
+                  onChanged: (val) => setState(() => _selectedYear = val!),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: workersList.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.assessment_outlined, size: 64, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      const Text('No records for selected month/year.', style: TextStyle(color: Color(0xFF64748B), fontSize: 15, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: workersList.length,
+                  itemBuilder: (context, index) {
+                    var worker = workersList[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3))],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            border: Border(left: BorderSide(color: Color(0xFF3B82F6), width: 4)),
+                          ),
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const CircleAvatar(
+                                        radius: 16,
+                                        backgroundColor: Color(0xFFEFF6FF),
+                                        child: Icon(Icons.person, color: Color(0xFF3B82F6), size: 18),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        worker['name'],
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
+                                      ),
+                                    ],
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text('Pending: ₹${worker['totalPending']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.redAccent)),
+                                      Text('Paid: ₹${worker['totalPaid']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.green)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 12),
+                                child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  _buildCountBadge('Full Days', '${worker['fullDays']}', Colors.blue.shade50, Colors.blue.shade700),
+                                  _buildCountBadge('Half Days', '${worker['halfDays']}', Colors.orange.shade50, Colors.orange.shade700),
+                                  _buildCountBadge('Absent', '${worker['absent']}', Colors.red.shade50, Colors.red.shade700),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCountBadge(String label, String count, Color bgColor, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          Text(count, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(fontSize: 11, color: textColor, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    double totalAmount = _calculateTotalAmount();
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6))),
+      );
+    }
+
+    if (widget.categoryTitle.toLowerCase().contains('labour')) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          title: Text('${widget.siteName} - Labour', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF1E293B))),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Color(0xFF1E293B)),
+          bottom: TabBar(
+            controller: _tabController,
+            labelColor: const Color(0xFF3B82F6),
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: const Color(0xFF3B82F6),
+            tabs: const [
+              Tab(text: 'Daily Records', icon: Icon(Icons.list_alt, size: 18)),
+              Tab(text: 'Monthly Report', icon: Icon(Icons.calendar_month, size: 18)),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
+              onPressed: _generateAndSharePdf,
+            ),
+          ],
+        ),
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildRecordsView(),
+            _buildMonthlyReportView(),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: const Color(0xFF3B82F6),
+          foregroundColor: Colors.white,
+          onPressed: () => _showAddOrEditDialog(),
+          child: const Icon(Icons.add),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -593,219 +1011,21 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        centerTitle: false,
         iconTheme: const IconThemeData(color: Color(0xFF1E293B)),
         actions: [
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.picture_as_pdf, color: Colors.redAccent, size: 22),
-              tooltip: 'PDF Report Download & Share',
-              onPressed: _generateAndSharePdf,
-            ),
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
+            onPressed: _generateAndSharePdf,
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
-          : Column(
-              children: [
-                // 👉 Modern Gradient Summary Card
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.blue.withValues(alpha: 0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Total Entries', style: TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w500)),
-                          const SizedBox(height: 6),
-                          Text('${_filteredExpenses.length}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-                        ],
-                      ),
-                      Container(height: 35, width: 1, color: Colors.white24),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text('Total Expense (Total)', style: TextStyle(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w500)),
-                          const SizedBox(height: 6),
-                          Text('₹ $totalAmount', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF4ADE80))),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // 👉 Modern Search Bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Search by entry or vehicle number...',
-                      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                      prefixIcon: const Icon(Icons.search, color: Color(0xFF64748B)),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade200)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5)),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                
-                Expanded(
-                  child: _filteredExpenses.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey.shade300),
-                              const SizedBox(height: 12),
-                              const Text('No matching entries found.', style: TextStyle(color: Color(0xFF64748B), fontSize: 15, fontWeight: FontWeight.w500)),
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF3B82F6),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                ),
-                                onPressed: () => _showAddOrEditDialog(),
-                                icon: const Icon(Icons.add),
-                                label: const Text('Add your first entry', style: TextStyle(fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                          itemCount: _filteredExpenses.length,
-                          itemBuilder: (context, index) {
-                            final exp = _filteredExpenses[index];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.03),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                borderRadius: BorderRadius.circular(14),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(14),
-                                  onTap: () => _showAddOrEditDialog(existingExpense: exp),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(14),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFEFF6FF),
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: const Icon(Icons.receipt, color: Color(0xFF3B82F6), size: 20),
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                exp['title'], 
-                                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                exp['date'], 
-                                                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              '₹ ${exp['amount']}',
-                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF16A34A)),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            InkWell(
-                                              onTap: () async {
-                                                bool? confirm = await showDialog(
-                                                  context: context,
-                                                  builder: (ctx) => AlertDialog(
-                                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                                    title: const Text('Are you sure you want to delete this entry?'),
-                                                    content: const Text('This entry will be deleted permanently and cannot be recovered.'),
-                                                    actions: [
-                                                      TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Nahi')),
-                                                      TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Hoy, delete kara', style: TextStyle(color: Colors.red))),
-                                                    ],
-                                                  ),
-                                                );
-                                                if (confirm == true) {
-                                                  _deleteExpense(exp['id']);
-                                                }
-                                              },
-                                              child: Padding(
-                                                padding: const EdgeInsets.all(4),
-                                                child: Icon(Icons.delete_outline, color: Colors.red.shade400, size: 18),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
+      body: _buildRecordsView(),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF3B82F6),
         foregroundColor: Colors.white,
-        elevation: 4,
         onPressed: () => _showAddOrEditDialog(),
         child: const Icon(Icons.add),
       ),
     );
   }
 }
-

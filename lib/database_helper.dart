@@ -1,193 +1,153 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
-  
-  DatabaseHelper._init() {
-    try {
-      if (!kIsWeb) {
-        _firestore.settings = const Settings(
-          persistenceEnabled: true,
-          cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-        );
-      }
-    } catch (_) {}
-  }
+  DatabaseHelper._init();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static String? currentUserIdentifier;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 👉 युजर आयडी मेमरी किंवा SharedPreferences मधून मिळवणे
-  static Future<String?> getCurrentUser() async {
-    if (currentUserIdentifier != null && currentUserIdentifier!.trim().isNotEmpty) {
-      return currentUserIdentifier!.trim().toLowerCase();
-    }
-    final prefs = await SharedPreferences.getInstance();
-    currentUserIdentifier = prefs.getString('userIdentifier');
-    return currentUserIdentifier?.trim().toLowerCase();
-  }
-
-  // 👉 रजिस्टर करताना सेशन सेव्ह करणे
+  // 👉 Register User with Firebase Auth & Firestore
   Future<bool> registerUser(String identifier, String password) async {
     try {
-      String cleanId = identifier.trim().toLowerCase();
-      String cleanPass = password.trim();
+      String email = identifier.contains('@') 
+          ? identifier.trim().toLowerCase() 
+          : '${identifier.trim()}@sitemanagement.com';
 
-      if (cleanId.isEmpty || cleanPass.isEmpty) return false;
+      UserCredential credential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password.trim(),
+      );
 
-      final docRef = _firestore.collection('users').doc(cleanId);
-      final docSnap = await docRef.get();
-
-      if (docSnap.exists) {
-        return false; // User already exists
+      if (credential.user != null) {
+        await _firestore.collection('users').doc(credential.user!.uid).set({
+          'identifier': identifier.trim().toLowerCase(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        return true;
       }
-
-      await docRef.set({
-        'identifier': cleanId,
-        'password': cleanPass,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      currentUserIdentifier = cleanId;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userIdentifier', cleanId);
-      await prefs.setBool('isLoggedIn', true);
-
-      return true;
+      return false;
     } catch (e) {
-      debugPrint('Registration Error: $e');
+      debugPrint('Firebase Registration Error: $e');
       return false;
     }
   }
 
-  // 👉 लॉगिन करताना सेशन सेव्ह करणे
+  // 👉 Check Login with Firebase Auth
   Future<bool> checkLogin(String identifier, String password) async {
     try {
-      String cleanId = identifier.trim().toLowerCase();
-      String cleanPass = password.trim();
+      String email = identifier.contains('@') 
+          ? identifier.trim().toLowerCase() 
+          : '${identifier.trim()}@sitemanagement.com';
 
-      if (cleanId.isEmpty || cleanPass.isEmpty) return false;
+      UserCredential credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password.trim(),
+      );
 
-      final docRef = _firestore.collection('users').doc(cleanId);
-      final docSnap = await docRef.get();
-
-      if (docSnap.exists) {
-        final data = docSnap.data();
-        if (data != null && data['password'].toString().trim() == cleanPass) {
-          currentUserIdentifier = cleanId;
-          
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('userIdentifier', cleanId);
-          await prefs.setBool('isLoggedIn', true);
-          
-          return true;
-        }
+      if (credential.user != null) {
+        currentUserIdentifier = credential.user!.uid;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('current_user', currentUserIdentifier!);
+        return true;
       }
       return false;
     } catch (e) {
-      debugPrint('Login Error: $e');
+      debugPrint('Firebase Login Error: $e');
       return false;
     }
   }
 
-  // 👉 Insert Site
+  // 👉 Insert Site to Firestore
   Future<void> insertSite(String name) async {
-    String? userId = await getCurrentUser();
-    if (userId == null || userId.isEmpty) {
-      debugPrint('CRITICAL ERROR: User ID is null while inserting site!');
-      return;
-    }
+    if (currentUserIdentifier == null) return;
     try {
+      String cleanName = name.trim();
       await _firestore
           .collection('users')
-          .doc(userId)
+          .doc(currentUserIdentifier)
           .collection('sites')
-          .doc(name.trim())
-          .set({
-        'name': name.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+          .doc(cleanName)
+          .set({'name': cleanName, 'updatedAt': FieldValue.serverTimestamp()});
     } catch (e) {
       debugPrint('Site Insert Error: $e');
     }
   }
 
-  // 👉 Get Sites
+  // 👉 Get Sites from Firestore
   Future<List<Map<String, dynamic>>> getSites() async {
-    String? userId = await getCurrentUser();
-    if (userId == null || userId.isEmpty) return [];
+    if (currentUserIdentifier == null) return [];
     try {
       QuerySnapshot snapshot = await _firestore
           .collection('users')
-          .doc(userId)
+          .doc(currentUserIdentifier)
           .collection('sites')
           .get();
 
-      return snapshot.docs.map((doc) {
-        return {'name': doc['name'].toString()};
-      }).toList();
+      return snapshot.docs.map((doc) => {'name': doc['name'].toString()}).toList();
     } catch (e) {
       debugPrint('Get Sites Error: $e');
       return [];
     }
   }
 
-  // 👉 Add Expense
+  // 👉 Add Expense to Firestore
   Future<void> addExpense(String siteName, String categoryName, Map<String, dynamic> expenseData) async {
-    String? userId = await getCurrentUser();
-    if (userId == null || userId.isEmpty) {
-      debugPrint('CRITICAL ERROR: User ID is null while adding expense!');
-      return;
-    }
+    if (currentUserIdentifier == null) return;
     try {
+      String expenseId = expenseData['id'].toString();
       await _firestore
           .collection('users')
-          .doc(userId)
+          .doc(currentUserIdentifier)
           .collection('sites')
           .doc(siteName.trim())
-          .collection(categoryName.trim())
-          .doc(expenseData['id'].toString())
+          .collection('categories')
+          .doc(categoryName.trim())
+          .collection('expenses')
+          .doc(expenseId)
           .set(expenseData);
     } catch (e) {
       debugPrint('Add Expense Error: $e');
     }
   }
 
-  // 👉 Get Expenses
+  // 👉 Get Expenses from Firestore
   Future<List<Map<String, dynamic>>> getExpenses(String siteName, String categoryName) async {
-    String? userId = await getCurrentUser();
-    if (userId == null || userId.isEmpty) return [];
+    if (currentUserIdentifier == null) return [];
     try {
       QuerySnapshot snapshot = await _firestore
           .collection('users')
-          .doc(userId)
+          .doc(currentUserIdentifier)
           .collection('sites')
           .doc(siteName.trim())
-          .collection(categoryName.trim())
+          .collection('categories')
+          .doc(categoryName.trim())
+          .collection('expenses')
           .get();
 
-      return snapshot.docs.map((doc) {
-        return doc.data() as Map<String, dynamic>;
-      }).toList();
+      return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
     } catch (e) {
       debugPrint('Get Expenses Error: $e');
       return [];
     }
   }
 
-  // 👉 Delete Expense
+  // 👉 Delete Expense from Firestore
   Future<void> deleteExpenseById(String siteName, String categoryName, int id) async {
-    String? userId = await getCurrentUser();
-    if (userId == null || userId.isEmpty) return;
+    if (currentUserIdentifier == null) return;
     try {
       await _firestore
           .collection('users')
-          .doc(userId)
+          .doc(currentUserIdentifier)
           .collection('sites')
           .doc(siteName.trim())
-          .collection(categoryName.trim())
+          .collection('categories')
+          .doc(categoryName.trim())
+          .collection('expenses')
           .doc(id.toString())
           .delete();
     } catch (e) {
@@ -197,19 +157,6 @@ class DatabaseHelper {
 
   // 👉 Update Expense
   Future<void> updateExpense(String siteName, String categoryName, Map<String, dynamic> updatedExpense) async {
-    String? userId = await getCurrentUser();
-    if (userId == null || userId.isEmpty) return;
-    try {
-      await _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('sites')
-          .doc(siteName.trim())
-          .collection(categoryName.trim())
-          .doc(updatedExpense['id'].toString())
-          .update(updatedExpense);
-    } catch (e) {
-      debugPrint('Update Error: $e');
-    }
+    await addExpense(siteName, categoryName, updatedExpense);
   }
 }
