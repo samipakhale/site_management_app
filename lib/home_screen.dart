@@ -24,10 +24,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadSites() async {
     setState(() => _isLoading = true);
     final sites = await DatabaseHelper.instance.getSites();
-    setState(() {
-      _sites = sites;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _sites = sites;
+        _isLoading = false;
+      });
+    }
   }
 
   void _showAddSiteDialog() {
@@ -57,14 +59,8 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () async {
               if (siteController.text.trim().isNotEmpty) {
                 await DatabaseHelper.instance.insertSite(siteController.text.trim());
-                
-                if (ctx.mounted) {
-                  Navigator.of(ctx).pop();
-                }
-                
-                if (mounted) {
-                  _loadSites();
-                }
+                if (ctx.mounted) Navigator.of(ctx).pop();
+                if (mounted) _loadSites();
               }
             },
             child: const Text('Save'),
@@ -74,7 +70,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 👉 Logout Confirmation Dialog with Session Cleared
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -89,34 +84,13 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.logout_rounded,
-                  color: Colors.redAccent,
-                  size: 32,
-                ),
+                decoration: BoxDecoration(color: Colors.red.shade50, shape: BoxShape.circle),
+                child: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 32),
               ),
               const SizedBox(height: 18),
-              const Text(
-                'Log Out',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
+              const Text('Log Out', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
               const SizedBox(height: 8),
-              const Text(
-                'Are you sure you want to log out of your account?',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF64748B),
-                ),
-              ),
+              const Text('Are you sure you want to log out of your account?', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
               const SizedBox(height: 24),
               Row(
                 children: [
@@ -124,20 +98,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: TextButton(
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade300),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade300)),
                       ),
                       onPressed: () => Navigator.of(dialogContext).pop(),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
+                      child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600, fontSize: 15)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -148,35 +112,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         foregroundColor: Colors.white,
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () async {
                         Navigator.of(dialogContext).pop();
-                        
-                        // 👉 Clear current user identifier for security
                         DatabaseHelper.currentUserIdentifier = null;
 
                         final prefs = await SharedPreferences.getInstance();
                         await prefs.setBool('isLoggedIn', false);
                         await prefs.remove('userIdentifier');
-                        await prefs.remove('userPassword');
 
                         if (!mounted) return;
-
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(builder: (context) => const LoginScreen()),
                         );
                       },
-                      child: const Text(
-                        'Log Out',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
+                      child: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     ),
                   ),
                 ],
@@ -239,21 +191,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           backgroundColor: Colors.blueAccent,
                           child: Icon(Icons.apartment, color: Colors.white),
                         ),
-                        title: Text(
-                          site['name'] ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
+                        title: Text(site['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         subtitle: const Text('Tap to view expenses', style: TextStyle(color: Colors.grey, fontSize: 12)),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => SiteDetailScreen(siteName: site['name']),
-                            ),
-                          ).then((_) {
-                            _loadSites();
-                          });
+                            MaterialPageRoute(builder: (context) => SiteDetailScreen(siteName: site['name'])),
+                          ).then((_) => _loadSites());
                         },
                       ),
                     );

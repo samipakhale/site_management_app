@@ -17,20 +17,19 @@ class DatabaseHelper {
   }
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
   static String? currentUserIdentifier;
 
-  // 👉 Bulletproof method to always get valid user ID from memory or SharedPreferences
+  // 👉 युजर आयडी मेमरी किंवा SharedPreferences मधून मिळवणे
   static Future<String?> getCurrentUser() async {
-    if (currentUserIdentifier != null && currentUserIdentifier!.isNotEmpty) {
-      return currentUserIdentifier;
+    if (currentUserIdentifier != null && currentUserIdentifier!.trim().isNotEmpty) {
+      return currentUserIdentifier!.trim().toLowerCase();
     }
     final prefs = await SharedPreferences.getInstance();
     currentUserIdentifier = prefs.getString('userIdentifier');
-    return currentUserIdentifier;
+    return currentUserIdentifier?.trim().toLowerCase();
   }
 
-  // 👉 Register User & automatically save session
+  // 👉 रजिस्टर करताना सेशन सेव्ह करणे
   Future<bool> registerUser(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();
@@ -51,7 +50,6 @@ class DatabaseHelper {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Save session immediately upon registration
       currentUserIdentifier = cleanId;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('userIdentifier', cleanId);
@@ -64,7 +62,7 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Login & save session
+  // 👉 लॉगिन करताना सेशन सेव्ह करणे
   Future<bool> checkLogin(String identifier, String password) async {
     try {
       String cleanId = identifier.trim().toLowerCase();
@@ -94,7 +92,7 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Insert Site (Guaranteed to save on Firebase)
+  // 👉 Insert Site
   Future<void> insertSite(String name) async {
     String? userId = await getCurrentUser();
     if (userId == null || userId.isEmpty) {
@@ -111,7 +109,6 @@ class DatabaseHelper {
         'name': name.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
-      debugPrint('Site successfully saved to Firebase for user: $userId');
     } catch (e) {
       debugPrint('Site Insert Error: $e');
     }
@@ -137,7 +134,7 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Add Expense (Guaranteed to save on Firebase)
+  // 👉 Add Expense
   Future<void> addExpense(String siteName, String categoryName, Map<String, dynamic> expenseData) async {
     String? userId = await getCurrentUser();
     if (userId == null || userId.isEmpty) {
@@ -153,7 +150,6 @@ class DatabaseHelper {
           .collection(categoryName.trim())
           .doc(expenseData['id'].toString())
           .set(expenseData);
-      debugPrint('Expense successfully saved to Firebase!');
     } catch (e) {
       debugPrint('Add Expense Error: $e');
     }
