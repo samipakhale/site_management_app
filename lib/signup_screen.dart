@@ -13,7 +13,6 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _identifierController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
   bool _obscureText = true;
-  bool _isLoading = false;
 
   void _signup() async {
     String identifier = _identifierController.text.trim();
@@ -31,57 +30,46 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
-      // 👉 Check if registration is successful (Local + Firebase check)
       bool success = await DatabaseHelper.instance.registerUser(identifier, password);
 
       if (!mounted) return;
 
-      setState(() {
-        _isLoading = false;
-      });
+      if (success) {
+        // 👉 Account banalyavar user identifier set kela
+        DatabaseHelper.currentUserIdentifier = identifier.trim().toLowerCase();
 
-      if (!success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('User already exists or registration failed! Please log in.'),
-            backgroundColor: Colors.red.shade600,
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Your account has been successfully created!')),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('User already exists with this mobile/email! Try logging in.'),
+            backgroundColor: Colors.orange.shade800,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
-        return;
       }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Expanded(child: Text('Your account has been successfully created!')),
-            ],
-          ),
-          backgroundColor: Colors.green.shade600,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
@@ -229,17 +217,11 @@ class _SignupScreenState extends State<SignupScreen> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          onPressed: _isLoading ? null : _signup,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                )
-                              : const Text(
-                                  'Sign Up',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
-                                ),
+                          onPressed: _signup,
+                          child: const Text(
+                            'Sign Up',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                          ),
                         ),
                       ),
                     ],
