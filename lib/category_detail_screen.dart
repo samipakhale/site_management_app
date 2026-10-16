@@ -82,7 +82,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
 
   final List<String> _materialOptions = ['Sand', 'Agg', 'Steel', 'Cement', 'Bitumin'];
   final List<String> _equipmentOptions = ['J.C.B (Per Hr.)', 'Poclain (Per Hr.)', 'Tractor (Halday / Days)', 'Tanker (Nos.)'];
-  final List<String> _equipmentUnitOptions = ['Hours (Hrs)', 'Days', 'Nos'];
   final List<String> _vendorStatusOptions = ['Paid', 'Pending'];
   final List<String> _labourStatusOptions = ['Present (Full Day)', 'Half Day', 'Absent'];
   final List<String> _labourPaymentStatusOptions = ['Paid', 'Pending'];
@@ -91,7 +90,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
 
   String? _selectedSubMaterial;
   String? _selectedSubEquipment;
-  String? _selectedEquipmentUnit;
   String? _selectedVendorStatus;
   String? _selectedLabourStatus;
   String? _selectedLabourPaymentStatus;
@@ -194,7 +192,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
               pw.SizedBox(height: 14),
               pw.Divider(),
               pw.TableHelper.fromTextArray(
-                headers: ['Title / Item', 'Details / Qty', 'Date', 'Amount (Rs)'],
+                headers: ['Title / Item', 'Details / Note', 'Date', 'Amount (Rs)'],
                 data: _filteredExpenses.map((exp) {
                   return [
                     exp['title'].toString(),
@@ -227,7 +225,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
       _selectedSubMaterial = isEditing ? existingExpense['title'] : _materialOptions.first;
     } else if (cat.contains('equipment')) {
       _selectedSubEquipment = isEditing ? existingExpense['title'] : _equipmentOptions.first;
-      _selectedEquipmentUnit = _equipmentUnitOptions.first;
     } else if (cat.contains('vendor')) {
       _selectedVendorStatus = _vendorStatusOptions.first;
     } else if (cat.contains('labour')) {
@@ -239,7 +236,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     }
 
     final TextEditingController titleController = TextEditingController(text: isEditing ? existingExpense['title']?.toString() : '');
-    final TextEditingController qtyController = TextEditingController();
     final TextEditingController amountController = TextEditingController(text: isEditing ? existingExpense['amount']?.toString() : '');
     final TextEditingController descController = TextEditingController();
 
@@ -400,46 +396,16 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                     const SizedBox(height: 14),
                   ],
 
-                  if (cat.contains('material')) ...[
-                    TextField(
-                      controller: qtyController,
-                      decoration: InputDecoration(
-                        labelText: 'Unit (Brass / Bags / Tons)',
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      ),
+                  TextField(
+                    controller: descController,
+                    decoration: InputDecoration(
+                      labelText: 'Note / Description (Optional)',
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                     ),
-                    const SizedBox(height: 14),
-                  ],
-
-                  if (cat.contains('equipment')) ...[
-                    TextField(
-                      controller: qtyController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Vapar Quantity (e.g. 10)',
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedEquipmentUnit,
-                      decoration: InputDecoration(
-                        labelText: 'Select Unit Type',
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      ),
-                      items: _equipmentUnitOptions.map((String opt) {
-                        return DropdownMenuItem<String>(value: opt, child: Text(opt));
-                      }).toList(),
-                      onChanged: (String? val) => dialogSetState(() => _selectedEquipmentUnit = val),
-                    ),
-                    const SizedBox(height: 14),
-                  ],
+                  ),
+                  const SizedBox(height: 14),
 
                   TextField(
                     controller: amountController,
@@ -469,17 +435,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                     ),
                     const SizedBox(height: 14),
                   ],
-
-                  TextField(
-                    controller: descController,
-                    decoration: InputDecoration(
-                      labelText: 'Tip / Description / Gadi No',
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
 
                   InkWell(
                     onTap: () async {
@@ -583,27 +538,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                   }
 
                   if (amountController.text.trim().isNotEmpty) {
-                    String detailsPrefix = '';
-                    if (cat.contains('labour')) {
-                      detailsPrefix = 'Status: ${_selectedLabourStatus ?? 'Present'} | Pay: ${_selectedLabourPaymentStatus ?? 'Pending'} | ';
-                    } else if (cat.contains('vendor')) {
-                      detailsPrefix = 'Status: ${_selectedVendorStatus ?? 'Pending'} | ';
-                    } else if ((cat.contains('other') || cat.contains('expense')) && _selectedOtherCategory != null) {
-                      detailsPrefix = 'Category: $_selectedOtherCategory | ';
-                    }
-
-                    String fullDesc = '';
-                    if (cat.contains('equipment') && qtyController.text.trim().isNotEmpty) {
-                      fullDesc = '$detailsPrefix Qty: ${qtyController.text.trim()} ${_selectedEquipmentUnit ?? 'Hrs'} | ${descController.text.trim()}';
-                    } else if (qtyController.text.trim().isNotEmpty) {
-                      fullDesc = '$detailsPrefix Unit: ${qtyController.text.trim()} | ${descController.text.trim()}';
-                    } else {
-                      fullDesc = '$detailsPrefix${descController.text.trim()}';
-                    }
-
-                    if ((cat.contains('other') || cat.contains('expense')) && _selectedPaymentMode != null) {
-                      fullDesc = 'Mode: $_selectedPaymentMode | $fullDesc';
-                    }
+                    // Clean description without any auto-generated quantity/unit strings
+                    String fullDesc = descController.text.trim();
 
                     String formattedDateTime = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')} ${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
 
