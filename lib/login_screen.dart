@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'firebase_auth.dart'; // 👉 Firebase Auth import करा
+import 'package:firebase_auth/firebase_auth.dart'; // 👉 Yethe package barobar import kela ahe
 import 'home_screen.dart';
 import 'signup_screen.dart';
 
@@ -11,7 +11,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // इथे आपण युजरचा Email आणि Password घेण्यासाठी Controllers वापरत आहोत
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   
@@ -25,7 +24,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // 👉 हे मुख्य लॉगिन फंक्शन आहे जे ॲप रीइंस्टॉल केल्यावरही Firebase वरून बरोबर लॉगिन करेल
   void _login() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
@@ -40,7 +38,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Firebase द्वारे युजर तपासला जाईल (म्हणून रीइंस्टॉल केल्यावरही एरर येणार नाही)
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
@@ -48,7 +45,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!mounted) return;
 
-      // यशस्वी लॉगिन झाल्यावर Home Screen वर जा
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -160,7 +156,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: Column(
                     children: [
-                      // Email Field
                       TextField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -177,7 +172,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Password Field
                       TextField(
                         controller: _passwordController,
                         obscureText: _obscureText,
@@ -202,8 +196,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-
-                      // Login Button
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -234,8 +226,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 28),
-
-                // Register Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

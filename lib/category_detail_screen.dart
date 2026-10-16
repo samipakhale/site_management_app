@@ -122,57 +122,62 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     }
   }
 
-Map<String, Map<String, dynamic>> _getMonthlyLabourSummary() {
+  Map<String, Map<String, dynamic>> _getMonthlyLabourSummary() {
     Map<String, Map<String, dynamic>> summary = {};
 
-    for (var entry in _expenses) {
-      String dateStr = entry['date']?.toString() ?? '';
+    var monthFiltered = _expenses.where((exp) {
+      String dateStr = exp['date']?.toString() ?? '';
       if (dateStr.isNotEmpty) {
-        try {
-          DateTime? parsedDate = DateTime.tryParse(dateStr);
-          if (parsedDate != null) {
-            String yearStr = parsedDate.year.toString();
-            String monthStr = parsedDate.month.toString().padLeft(2, '0');
+        DateTime? parsedDate = DateTime.tryParse(dateStr.split(' ')[0]);
+        if (parsedDate != null) {
+          String yearStr = parsedDate.year.toString();
+          String monthStr = parsedDate.month.toString().padLeft(2, '0');
+          return yearStr == _selectedYear && monthStr == _selectedMonth;
+        } else if (dateStr.length >= 7) {
+          String yearPart = dateStr.substring(0, 4);
+          String monthPart = dateStr.substring(5, 7);
+          return yearPart == _selectedYear && monthPart == _selectedMonth;
+        }
+      }
+      return false;
+    }).toList();
 
-            if (yearStr == _selectedYear && monthStr == _selectedMonth) {
-              String workerName = (entry['title'] != null && entry['title'].toString().trim().isNotEmpty)
-                  ? entry['title'].toString()
-                  : 'Labour';
-              String desc = entry['desc']?.toString() ?? '';
-              double amount = double.tryParse(entry['amount'].toString()) ?? 0.0;
+    for (var entry in monthFiltered) {
+      String workerName = (entry['title'] != null && entry['title'].toString().trim().isNotEmpty)
+          ? entry['title'].toString()
+          : 'Labour';
+      String desc = entry['desc']?.toString() ?? '';
+      double amount = double.tryParse(entry['amount'].toString()) ?? 0.0;
 
-              if (!summary.containsKey(workerName)) {
-                summary[workerName] = {
-                  'name': workerName,
-                  'fullDays': 0,
-                  'halfDays': 0,
-                  'absent': 0,
-                  'totalPaid': 0.0,
-                  'totalPending': 0.0,
-                };
-              }
+      if (!summary.containsKey(workerName)) {
+        summary[workerName] = {
+          'name': workerName,
+          'fullDays': 0,
+          'halfDays': 0,
+          'absent': 0,
+          'totalPaid': 0.0,
+          'totalPending': 0.0,
+        };
+      }
 
-              if (desc.contains('Present (Full Day)')) {
-                summary[workerName]!['fullDays'] = (summary[workerName]!['fullDays'] as int) + 1;
-              } else if (desc.contains('Half Day')) {
-                summary[workerName]!['halfDays'] = (summary[workerName]!['halfDays'] as int) + 1;
-              } else if (desc.contains('Absent')) {
-                summary[workerName]!['absent'] = (summary[workerName]!['absent'] as int) + 1;
-              }
+      if (desc.contains('Present (Full Day)')) {
+        summary[workerName]!['fullDays'] = (summary[workerName]!['fullDays'] as int) + 1;
+      } else if (desc.contains('Half Day')) {
+        summary[workerName]!['halfDays'] = (summary[workerName]!['halfDays'] as int) + 1;
+      } else if (desc.contains('Absent')) {
+        summary[workerName]!['absent'] = (summary[workerName]!['absent'] as int) + 1;
+      }
 
-              if (desc.contains('Pay: Paid')) {
-                summary[workerName]!['totalPaid'] = (summary[workerName]!['totalPaid'] as double) + amount;
-              } else {
-                summary[workerName]!['totalPending'] = (summary[workerName]!['totalPending'] as double) + amount;
-              }
-            }
-          }
-        } catch (_) {}
+      if (desc.contains('Pay: Paid')) {
+        summary[workerName]!['totalPaid'] = (summary[workerName]!['totalPaid'] as double) + amount;
+      } else {
+        summary[workerName]!['totalPending'] = (summary[workerName]!['totalPending'] as double) + amount;
       }
     }
+
     return summary;
   }
-  
+
   Future<void> _generateAndSharePdf() async {
     final pdf = pw.Document();
     double totalAmount = _calculateTotalAmount();
@@ -1038,3 +1043,5 @@ Map<String, Map<String, dynamic>> _getMonthlyLabourSummary() {
     );
   }
 }
+
+
