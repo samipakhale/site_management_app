@@ -71,11 +71,10 @@ class _ClientSummaryDashboardScreenState
   @override
   void initState() {
     super.initState();
-    _loadSavedProfileImage(); // 👈 ॲप सुरू झाल्यावर सेव्ह असलेला फोटो लोड करा
+    _loadSavedProfileImage();
     _fetchDashboardData();
   }
 
-  // 📂 लोकल स्टोरेजमधून परमनंट फोटो लोड करण्यासाठी
   Future<void> _loadSavedProfileImage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -90,7 +89,6 @@ class _ClientSummaryDashboardScreenState
     }
   }
 
-  // 📸 फोटो निवडून SharedPreferences मध्ये कायमस्वरूपी सेव्ह करण्यासाठी
   Future<void> _pickProfileImage() async {
     final XFile? pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -99,7 +97,6 @@ class _ClientSummaryDashboardScreenState
 
     if (pickedFile != null) {
       File selectedImage = File(pickedFile.path);
-      
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('contractor_profile_image', selectedImage.path);
@@ -154,7 +151,6 @@ class _ClientSummaryDashboardScreenState
             List<Map<String, dynamic>> eqExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Equipment');
             totalEquipment += _calculateSum(eqExpenses);
 
-            // 💡 Extra, Misc किंवा Other कुठल्याही नावाने डेटा असला तरी तो इथे कॅच होईल
             List<Map<String, dynamic>> extExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Extra');
             totalExtra += _calculateSum(extExpenses);
 
@@ -230,7 +226,7 @@ class _ClientSummaryDashboardScreenState
     if (maxAmount <= 0) maxAmount = 100000.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A), // ✨ Dark Slate Background
+      backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F172A),
         elevation: 0,
@@ -266,59 +262,6 @@ class _ClientSummaryDashboardScreenState
             onPressed: _fetchDashboardData,
           ),
         ],
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0F172A),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 10,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF38BDF8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: 4,
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const HomeScreen(),
-                ),
-              );
-            },
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "View Site Management",
-                  style: TextStyle(
-                    color: Color(0xFF0F172A),
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(width: 8),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Color(0xFF0F172A),
-                  size: 18,
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
       body: _isLoading
           ? const Center(
@@ -432,7 +375,91 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // Financial Summary Card
+                  // 2. ACTIVE SITES SECTION
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.apartment_rounded,
+                                  color: Color(0xFF38BDF8),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Active Sites (${_activeSites.length})",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF38BDF8).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Text(
+                                "Chalu Sites",
+                                style: TextStyle(
+                                  color: Color(0xFF38BDF8),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+                        const SizedBox(height: 10),
+                        
+                        SizedBox(
+                          height: 130,
+                          child: _activeSites.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    "Kutlihi active site nahiye.",
+                                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: _activeSites.length,
+                                  itemBuilder: (context, index) {
+                                    final site = _activeSites[index];
+                                    return _buildSiteItem(
+                                      site.siteName,
+                                      site.status,
+                                      const Color(0xFF34D399),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 3. FINANCIAL SUMMARY
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -478,7 +505,7 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // 📊 DARK THEME VERTICAL CHART SECTION
+                  // 4. EXPENSE BREAKDOWN COLUMN CHART
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -493,7 +520,7 @@ class _ClientSummaryDashboardScreenState
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text(
-                              "Expense Breakdown",
+                              "Expense Breakdown Chart",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -524,7 +551,7 @@ class _ClientSummaryDashboardScreenState
                           children: [
                             // Left Y-Axis Labels
                             SizedBox(
-                              height: 160,
+                              height: 180,
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -544,21 +571,21 @@ class _ClientSummaryDashboardScreenState
                               child: Stack(
                                 children: [
                                   SizedBox(
-                                    height: 160,
+                                    height: 180,
                                     child: Column(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: List.generate(5, (_) => Divider(color: Colors.white.withValues(alpha: 0.05), height: 1)),
                                     ),
                                   ),
                                   SizedBox(
-                                    height: 160,
+                                    height: 180,
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                                       crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
-                                        _buildVerticalBar("Mat.", _expenseSummary.materialTotal, maxAmount, const Color(0xFF38BDF8)),
-                                        _buildVerticalBar("Lab.", _expenseSummary.labourTotal, maxAmount, const Color(0xFFF59E0B)),
-                                        _buildVerticalBar("Vend.", _expenseSummary.vendorTotal, maxAmount, const Color(0xFFA855F7)),
+                                        _buildVerticalBar("Material", _expenseSummary.materialTotal, maxAmount, const Color(0xFF38BDF8)),
+                                        _buildVerticalBar("Labour", _expenseSummary.labourTotal, maxAmount, const Color(0xFFF59E0B)),
+                                        _buildVerticalBar("Vendor", _expenseSummary.vendorTotal, maxAmount, const Color(0xFFA855F7)),
                                         _buildVerticalBar("Equip.", _expenseSummary.equipmentTotal, maxAmount, const Color(0xFF14B8A6)),
                                         _buildVerticalBar("Extra", _expenseSummary.extraTotal, maxAmount, const Color(0xFFEF4444)),
                                       ],
@@ -573,6 +600,50 @@ class _ClientSummaryDashboardScreenState
                     ),
                   ),
 
+                  const SizedBox(height: 24),
+
+                  // 5. VIEW SITE MANAGEMENT BUTTON
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF38BDF8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 4,
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HomeScreen(),
+                          ),
+                        );
+                      },
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "View Site Management",
+                            style: TextStyle(
+                              color: Color(0xFF0F172A),
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Color(0xFF0F172A),
+                            size: 18,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                   const SizedBox(height: 20),
                 ],
               ),
@@ -580,15 +651,60 @@ class _ClientSummaryDashboardScreenState
     );
   }
 
+  Widget _buildSiteItem(String name, String status, Color dotColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            status,
+            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildVerticalBar(String label, double amount, double maxAmount, Color color) {
-    double barHeight = (amount / maxAmount) * 130.0;
-    if (barHeight < 10.0) barHeight = 10.0;
+    double barHeight = (amount / maxAmount) * 135.0;
+    if (barHeight < 12.0) barHeight = 12.0;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
+        Text(
+          _formatShortCurrency(amount),
+          style: const TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+            color: Colors.white70,
+          ),
+        ),
+        const SizedBox(height: 4),
         Container(
-          width: 24,
+          width: 32,
           height: barHeight,
           decoration: BoxDecoration(
             color: color,
@@ -599,7 +715,7 @@ class _ClientSummaryDashboardScreenState
         Text(
           label,
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w600,
             color: Color(0xFF94A3B8),
           ),
