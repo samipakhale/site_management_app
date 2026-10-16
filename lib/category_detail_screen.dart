@@ -21,7 +21,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
   TabController? _tabController;
   final TextEditingController _searchController = TextEditingController();
 
-  // Monthly Report Filters
   String _selectedMonth = DateTime.now().month.toString().padLeft(2, '0');
   String _selectedYear = DateTime.now().year.toString();
 
@@ -1043,5 +1042,3 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     );
   }
 }
-
-

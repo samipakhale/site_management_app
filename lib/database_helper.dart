@@ -9,17 +9,14 @@ class DatabaseHelper {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // 👉 Get current user UID directly from Firebase Auth
   String? get currentUserIdentifier {
     return _auth.currentUser?.uid;
   }
 
-  // 👉 Get current user Email
   String? get currentUserEmail {
     return _auth.currentUser?.email;
   }
 
-  // 👉 Register User with Email & Password
   Future<bool> registerUser(String email, String password) async {
     try {
       UserCredential credential = await _auth.createUserWithEmailAndPassword(
@@ -41,7 +38,6 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Check Login with Email & Password
   Future<bool> checkLogin(String email, String password) async {
     try {
       UserCredential credential = await _auth.signInWithEmailAndPassword(
@@ -56,7 +52,6 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Insert Site to Firestore
   Future<void> insertSite(String name) async {
     if (currentUserIdentifier == null) return;
     try {
@@ -72,16 +67,14 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Get Sites from Firestore with Server Source fallback
   Future<List<Map<String, dynamic>>> getSites() async {
     if (currentUserIdentifier == null) return [];
     try {
-      // Reinstall nantar fresh data milnyasathi ServerSource vapru shakto
       QuerySnapshot snapshot = await _firestore
           .collection('users')
           .doc(currentUserIdentifier)
           .collection('sites')
-          .get(const GetOptions(source: Source.serverAndCache)); // 👉 Server ani cache dono kadun data fetch karel
+          .get(const GetOptions(source: Source.serverAndCache));
 
       return snapshot.docs.map((doc) => {'name': doc['name'].toString()}).toList();
     } catch (e) {
@@ -90,7 +83,6 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Add Expense to Firestore
   Future<void> addExpense(String siteName, String categoryName, Map<String, dynamic> expenseData) async {
     if (currentUserIdentifier == null) return;
     try {
@@ -110,7 +102,6 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Get Expenses from Firestore
   Future<List<Map<String, dynamic>>> getExpenses(String siteName, String categoryName) async {
     if (currentUserIdentifier == null) return [];
     try {
@@ -131,7 +122,6 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Delete Expense from Firestore
   Future<void> deleteExpenseById(String siteName, String categoryName, dynamic id) async {
     if (currentUserIdentifier == null) return;
     try {
@@ -150,7 +140,6 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Update Expense
   Future<void> updateExpense(String siteName, String categoryName, Map<String, dynamic> updatedExpense) async {
     await addExpense(siteName, categoryName, updatedExpense);
   }

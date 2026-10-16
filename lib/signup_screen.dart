@@ -46,22 +46,24 @@ class _SignupScreenState extends State<SignupScreen> {
 
     setState(() => _isLoading = true);
 
-    // 👉 DatabaseHelper chi registerUser method call kara
-    bool success = await DatabaseHelper.instance.registerUser(email, password);
-
-    setState(() => _isLoading = false);
-
-    if (success) {
-      _showSnackBar('Account successfully create zale!', Colors.green);
+    try {
+      bool success = await DatabaseHelper.instance.registerUser(email, password);
 
       if (!mounted) return;
+      setState(() => _isLoading = false);
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
-    } else {
-      _showSnackBar('Sign Up fail zale kinva Email adhiich registered ahe.', Colors.red);
+      if (success) {
+        _showSnackBar('Account successfully create zale!', Colors.green);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      } else {
+        _showSnackBar('Sign Up fail zale. Ha Email adhiich registered asel.', Colors.red);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showSnackBar('Error: ${e.toString()}', Colors.red);
     }
   }
 
@@ -110,8 +112,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   style: TextStyle(color: Colors.grey, fontSize: 14),
                 ),
                 const SizedBox(height: 32),
-
-                // Email Field
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -124,8 +124,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Password Field
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -146,8 +144,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Confirm Password Field
                 TextField(
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirmPassword,
@@ -168,8 +164,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Sign Up Button
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
@@ -190,8 +184,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // Navigate to Login
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

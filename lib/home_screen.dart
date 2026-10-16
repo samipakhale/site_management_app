@@ -164,8 +164,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           onPressed: () async {
                             Navigator.of(dialogContext).pop();
-
-                            // Firebase Auth Sign Out
                             await FirebaseAuth.instance.signOut();
 
                             if (!mounted) return;

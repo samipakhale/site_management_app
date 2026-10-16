@@ -4,7 +4,7 @@ import 'splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // 👉 He line add keli ahe
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -24,4 +24,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
