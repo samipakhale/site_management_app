@@ -44,7 +44,7 @@ class ClientSummaryDashboardScreen extends StatefulWidget {
   const ClientSummaryDashboardScreen({
     super.key,
     this.clientName = "Mahesh Sir",
-    this.defaultSiteName = "Maher Workspace and Dashboard",
+    this.defaultSiteName = "Mahesh Workspace and Dashboard",
   });
 
   @override
