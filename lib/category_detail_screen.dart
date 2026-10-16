@@ -724,7 +724,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                                             title: const Text('Delete entry?'),
                                             content: const Text('This entry will be deleted permanently.'),
                                             actions: [
-                                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Nahi')),
+                                              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
                                               TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
                                             ],
                                           ),

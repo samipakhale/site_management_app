@@ -1,501 +1,601 @@
 import 'package:flutter/material.dart';
-// NOTE: Tumchya project chya folder path nusar home_screen.dart cha import check karun ghya
-import 'home_screen.dart'; 
+import 'home_screen.dart';
+// Tumchya actual database file che naav ithe dya (e.g. database_helper.dart)
+import 'database_helper.dart'; // .txt aivaji .dart karun baghimport 'home_screen.dart';
 
-class ClientSummaryDashboardScreen extends StatelessWidget {
+class SiteModel {
   final String siteName;
+  final String status;
+  final double budget;
+  final double receivedAmount;
+
+  SiteModel({
+    required this.siteName,
+    required this.status,
+    required this.budget,
+    required this.receivedAmount,
+  });
+}
+
+class CategoryExpenseSummary {
+  final double materialTotal;
+  final double labourTotal;
+  final double vendorTotal;
+  final double equipmentTotal;
+  final double extraTotal;
+
+  CategoryExpenseSummary({
+    required this.materialTotal,
+    required this.labourTotal,
+    required this.vendorTotal,
+    required this.equipmentTotal,
+    required this.extraTotal,
+  });
+
+  double get grandTotal =>
+      materialTotal + labourTotal + vendorTotal + equipmentTotal + extraTotal;
+}
+
+class ClientSummaryDashboardScreen extends StatefulWidget {
   final String clientName;
+  final String defaultSiteName;
 
   const ClientSummaryDashboardScreen({
     super.key,
-    this.siteName = "Shree Niwas Residency",
     this.clientName = "Mahesh Sir",
+    this.defaultSiteName = "Shree Niwas Residency",
   });
+
+  @override
+  State<ClientSummaryDashboardScreen> createState() =>
+      _ClientSummaryDashboardScreenState();
+}
+
+class _ClientSummaryDashboardScreenState
+    extends State<ClientSummaryDashboardScreen> {
+  List<SiteModel> _activeSites = [];
+  CategoryExpenseSummary _expenseSummary = CategoryExpenseSummary(
+    materialTotal: 0.0,
+    labourTotal: 0.0,
+    vendorTotal: 0.0,
+    equipmentTotal: 0.0,
+    extraTotal: 0.0,
+  );
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
+  }
+
+  Future<void> _fetchDashboardData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      List<Map<String, dynamic>> rawSites = await DatabaseHelper.instance.getSites();
+
+      List<SiteModel> loadedSites = [];
+      double totalMaterial = 0.0;
+      double totalLabour = 0.0;
+      double totalVendor = 0.0;
+      double totalEquipment = 0.0;
+      double totalExtra = 0.0;
+
+      if (rawSites.isNotEmpty) {
+        for (var siteMap in rawSites) {
+          String sName = siteMap['name']?.toString() ?? 'Unnamed Site';
+
+          loadedSites.add(
+            SiteModel(
+              siteName: sName,
+              status: "Ongoing",
+              budget: 500000.0,
+              receivedAmount: 350000.0,
+            ),
+          );
+
+          try {
+            List<Map<String, dynamic>> matExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Material');
+            totalMaterial += _calculateSum(matExpenses);
+
+            List<Map<String, dynamic>> labExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Labour');
+            totalLabour += _calculateSum(labExpenses);
+
+            List<Map<String, dynamic>> venExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Vendor');
+            totalVendor += _calculateSum(venExpenses);
+
+            List<Map<String, dynamic>> eqExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Equipment');
+            totalEquipment += _calculateSum(eqExpenses);
+
+            List<Map<String, dynamic>> extExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Extra');
+            totalExtra += _calculateSum(extExpenses);
+          } catch (_) {
+            // Catch error per site if category subcollection doesn't exist yet
+          }
+        }
+      }
+
+      if (loadedSites.isEmpty) {
+        loadedSites.add(
+          SiteModel(
+            siteName: widget.defaultSiteName,
+            status: "Main Site - Ongoing",
+            budget: 1500000.0,
+            receivedAmount: 1050000.0,
+          ),
+        );
+      }
+
+      setState(() {
+        _activeSites = loadedSites;
+        _expenseSummary = CategoryExpenseSummary(
+          materialTotal: totalMaterial > 0 ? totalMaterial : 420000.0,
+          labourTotal: totalLabour > 0 ? totalLabour : 250000.0,
+          vendorTotal: totalVendor > 0 ? totalVendor : 85000.0,
+          equipmentTotal: totalEquipment > 0 ? totalEquipment : 55000.0,
+          extraTotal: totalExtra > 0 ? totalExtra : 35000.0,
+        );
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Dashboard Error: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  double _calculateSum(List<Map<String, dynamic>> expenses) {
+    double sum = 0.0;
+    for (var item in expenses) {
+      if (item.containsKey('amount')) {
+        sum += double.tryParse(item['amount'].toString()) ?? 0.0;
+      }
+    }
+    return sum;
+  }
+
+  double get _totalBudget =>
+      _activeSites.fold(0.0, (sum, site) => sum + site.budget);
+
+  double get _totalReceived =>
+      _activeSites.fold(0.0, (sum, site) => sum + site.receivedAmount);
+
+  double get _totalPending => _totalBudget - _totalReceived;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "Client Dashboard",
+              "Maher Contractor",
               style: TextStyle(
-                color: Color(0xFF94A3B8),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
+                color: Colors.grey,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
               ),
             ),
             Text(
-              siteName,
+              widget.defaultSiteName,
               style: const TextStyle(
-                color: Color(0xFF0F172A),
+                color: Colors.black,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
-                fontSize: 17,
               ),
             ),
           ],
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: false,
-        iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
         actions: [
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: IconButton(
-              icon: const Icon(Icons.verified_rounded, color: Color(0xFF2563EB), size: 20),
-              onPressed: () {},
-              tooltip: 'Verified Project',
-            ),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.blue),
+            onPressed: _fetchDashboardData,
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Classy Hero Gradient Banner
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF334155)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF0F172A).withValues(alpha: 0.25),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Color(0xFF38BDF8),
-                            child: Text(
-                              "M",
-                              style: TextStyle(
-                                color: Color(0xFF0F172A),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            "Welcome, $clientName 👋",
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: const Color(0xFF34D399).withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: const Row(
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Icon(Icons.circle, size: 8, color: Color(0xFF34D399)),
-                            SizedBox(width: 5),
-                            Text(
-                              "ON SCHEDULE",
-                              style: TextStyle(
-                                color: Color(0xFF34D399),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: Colors.blue,
+                                  child: Text(
+                                    widget.clientName.isNotEmpty
+                                        ? widget.clientName[0]
+                                        : 'M',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  "Welcome, ${widget.clientName} 👋",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                "● ON SCHEDULE",
+                                style: TextStyle(
+                                  color: Colors.greenAccent,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
                         ),
+                        const SizedBox(height: 20),
+                        const Text(
+                          "Project Overview & Health",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              color: Colors.grey,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              widget.defaultSiteName,
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.apartment,
+                                  color: Colors.indigo,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Active Sites (${_activeSites.length})",
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.indigo.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                "Chalu Sites",
+                                style: TextStyle(
+                                  color: Colors.indigo,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Divider(height: 1),
+                        const SizedBox(height: 8),
+                        ..._activeSites.map(
+                          (site) => _buildSiteItem(
+                            site.siteName,
+                            site.status,
+                            Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Financial Summary",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildFinancialItem(
+                              "Total Budget",
+                              "₹ ${_formatCurrency(_totalBudget)}",
+                              Colors.black,
+                            ),
+                            _buildFinancialItem(
+                              "Jama (Received)",
+                              "₹ ${_formatCurrency(_totalReceived)}",
+                              Colors.green,
+                            ),
+                            _buildFinancialItem(
+                              "Pending Due",
+                              "₹ ${_formatCurrency(_totalPending)}",
+                              Colors.red,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Expense Breakdown",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        "Total: ₹ ${_formatCurrency(_expenseSummary.grandTotal)}",
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    "Project Overview & Health",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.3,
-                    ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, color: Color(0xFF38BDF8), size: 15),
-                      const SizedBox(width: 4),
                       Expanded(
-                        child: Text(
-                          siteName,
-                          style: const TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                        child: _buildCategoryCard(
+                          title: "Material",
+                          amount:
+                              "₹ ${_formatCurrency(_expenseSummary.materialTotal)}",
+                          icon: Icons.inventory_2_outlined,
+                          color: Colors.blue,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildCategoryCard(
+                          title: "Labour",
+                          amount:
+                              "₹ ${_formatCurrency(_expenseSummary.labourTotal)}",
+                          icon: Icons.groups_outlined,
+                          color: Colors.orange,
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            // 2. Metrics Gauge Cards (2 Columns)
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    title: "Task Execution",
-                    percentage: "82%",
-                    subtitle: "+5.1% this week",
-                    progressValue: 0.82,
-                    color: const Color(0xFF2563EB),
-                    icon: Icons.trending_up_rounded,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _buildMetricCard(
-                    title: "Schedule Health",
-                    percentage: "71%",
-                    subtitle: "On Track",
-                    progressValue: 0.71,
-                    color: const Color(0xFFD97706),
-                    icon: Icons.access_time_filled_rounded,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 18),
-
-            // 3. Financial Overview Glass-Style Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Financial Overview",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                      Icon(
-                        Icons.account_balance_wallet_outlined,
-                        color: Color(0xFF64748B),
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 12),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildFinancialItem("Total Budget", "₹ 15.0 L", const Color(0xFF475569)),
-                      _buildFinancialItem("Paid", "₹ 10.5 L", const Color(0xFF10B981)),
-                      _buildFinancialItem("Pending", "₹ 4.5 L", const Color(0xFFEF4444)),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: const LinearProgressIndicator(
-                      value: 0.70,
-                      minHeight: 10,
-                      backgroundColor: Color(0xFFF1F5F9),
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            // 4. Premium Navigation Card (Navigates to home_screen.dart)
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  // Direct calls home_screen.dart -> HomeScreen()
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const HomeScreen(),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF1D4ED8), Color(0xFF2563EB), Color(0xFF3B82F6)],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF2563EB).withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
+                      Expanded(
+                        child: _buildCategoryCard(
+                          title: "Vendor",
+                          amount:
+                              "₹ ${_formatCurrency(_expenseSummary.vendorTotal)}",
+                          icon: Icons.local_shipping_outlined,
+                          color: Colors.purple,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildCategoryCard(
+                          title: "Equipment",
+                          amount:
+                              "₹ ${_formatCurrency(_expenseSummary.equipmentTotal)}",
+                          icon: Icons.construction_outlined,
+                          color: Colors.teal,
+                        ),
                       ),
                     ],
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
+                  const SizedBox(height: 12),
+                  _buildCategoryCard(
+                    title: "Extra / Misc Kharch",
+                    amount:
+                        "₹ ${_formatCurrency(_expenseSummary.extraTotal)}",
+                    icon: Icons.more_horiz_outlined,
+                    color: Colors.redAccent,
+                    isFullWidth: true,
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 60,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: const Icon(Icons.layers_rounded, color: Colors.white, size: 24),
                       ),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "View Site Management",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            SizedBox(height: 3),
-                            Text(
-                              "Materials, labour attendance & expenses",
-                              style: TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
-                          ],
-                        ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const HomeScreen(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "View Site Management",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          color: Colors.white,
-                          size: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 18),
-
-            // 5. Work Phases Milestones Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Work Milestones",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  _buildPhaseRow("Foundation & Structure", "Completed", const Color(0xFF10B981), true),
-                  _buildPhaseRow("Brickwork & Plaster", "In Progress (82%)", const Color(0xFF2563EB), false),
-                  _buildPhaseRow("Flooring & Electrical", "Upcoming", const Color(0xFF94A3B8), false),
-                  _buildPhaseRow("Painting & Finishing", "Upcoming", const Color(0xFF94A3B8), false),
                 ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildMetricCard({
-    required String title,
-    required String percentage,
-    required String subtitle,
-    required double progressValue,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildSiteItem(String name, String status, Color dotColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                width: 8,
+                height: 8,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  color: dotColor,
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: color, size: 20),
               ),
-              Text(
-                percentage,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
-              ),
+              const SizedBox(width: 8),
+              Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progressValue,
-              minHeight: 6,
-              backgroundColor: color.withValues(alpha: 0.1),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-            ),
-          ),
+          Text(status, style: const TextStyle(color: Colors.grey, fontSize: 12)),
         ],
       ),
     );
   }
 
-  Widget _buildFinancialItem(String label, String value, Color valueColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: valueColor),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhaseRow(String title, String status, Color color, bool isDone) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0),
+  Widget _buildCategoryCard({
+    required String title,
+    required String amount,
+    required IconData icon,
+    required Color color,
+    bool isFullWidth = false,
+  }) {
+    return Container(
+      width: isFullWidth ? double.infinity : null,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
       child: Row(
         children: [
-          Icon(
-            isDone ? Icons.check_circle_rounded : Icons.radio_button_checked_rounded,
-            color: color,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
-            ),
-          ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Text(
-              status,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
-            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 2),
+              Text(amount, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildFinancialItem(String label, String amount, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 4),
+        Text(amount, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
+      ],
+    );
+  }
+
+  String _formatCurrency(double amount) {
+    return amount.toStringAsFixed(0).replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 }
