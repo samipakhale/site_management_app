@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'home_screen.dart';
 import 'database_helper.dart';
@@ -44,7 +45,7 @@ class ClientSummaryDashboardScreen extends StatefulWidget {
   const ClientSummaryDashboardScreen({
     super.key,
     this.clientName = "Mahesh Sir",
-    this.defaultSiteName = "Mahesh Workspace and Dashboard",
+    this.defaultSiteName = "Maher Interior & Works",
   });
 
   @override
@@ -63,18 +64,33 @@ class _ClientSummaryDashboardScreenState
     extraTotal: 0.0,
   );
   bool _isLoading = true;
-  
-  // 💡 Profile photo sathi variable
+
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
+    _loadSavedProfileImage(); // 👈 ॲप सुरू झाल्यावर सेव्ह असलेला फोटो लोड करा
     _fetchDashboardData();
   }
 
-  // 📸 Gallery madhun photo pick karnyachi function
+  // 📂 लोकल स्टोरेजमधून परमनंट फोटो लोड करण्यासाठी
+  Future<void> _loadSavedProfileImage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? savedPath = prefs.getString('contractor_profile_image');
+      if (savedPath != null && File(savedPath).existsSync()) {
+        setState(() {
+          _profileImage = File(savedPath);
+        });
+      }
+    } catch (e) {
+      debugPrint("Load Image Error: $e");
+    }
+  }
+
+  // 📸 फोटो निवडून SharedPreferences मध्ये कायमस्वरूपी सेव्ह करण्यासाठी
   Future<void> _pickProfileImage() async {
     final XFile? pickedFile = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -82,8 +98,17 @@ class _ClientSummaryDashboardScreenState
     );
 
     if (pickedFile != null) {
+      File selectedImage = File(pickedFile.path);
+      
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('contractor_profile_image', selectedImage.path);
+      } catch (e) {
+        debugPrint("Save Image Error: $e");
+      }
+
       setState(() {
-        _profileImage = File(pickedFile.path);
+        _profileImage = selectedImage;
       });
     }
   }
@@ -129,8 +154,15 @@ class _ClientSummaryDashboardScreenState
             List<Map<String, dynamic>> eqExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Equipment');
             totalEquipment += _calculateSum(eqExpenses);
 
+            // 💡 Extra, Misc किंवा Other कुठल्याही नावाने डेटा असला तरी तो इथे कॅच होईल
             List<Map<String, dynamic>> extExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Extra');
             totalExtra += _calculateSum(extExpenses);
+
+            List<Map<String, dynamic>> miscExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Misc');
+            totalExtra += _calculateSum(miscExpenses);
+
+            List<Map<String, dynamic>> otherExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Other');
+            totalExtra += _calculateSum(otherExpenses);
           } catch (_) {}
         }
       }
@@ -187,8 +219,18 @@ class _ClientSummaryDashboardScreenState
   Widget build(BuildContext context) {
     double grandTotal = _expenseSummary.grandTotal;
 
+    double maxAmount = [
+      _expenseSummary.materialTotal,
+      _expenseSummary.labourTotal,
+      _expenseSummary.vendorTotal,
+      _expenseSummary.equipmentTotal,
+      _expenseSummary.extraTotal,
+    ].reduce((curr, next) => curr > next ? curr : next);
+
+    if (maxAmount <= 0) maxAmount = 100000.0;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF0F172A), // ✨ Dark Slate Background
       appBar: AppBar(
         backgroundColor: const Color(0xFF0F172A),
         elevation: 0,
@@ -200,7 +242,7 @@ class _ClientSummaryDashboardScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "My Project details",
+              "MAHER CONTRACTOR",
               style: TextStyle(
                 color: Color(0xFF38BDF8),
                 fontSize: 10,
@@ -225,7 +267,6 @@ class _ClientSummaryDashboardScreenState
           ),
         ],
       ),
-      
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
@@ -279,7 +320,6 @@ class _ClientSummaryDashboardScreenState
           ),
         ),
       ),
-
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF38BDF8)),
@@ -289,7 +329,7 @@ class _ClientSummaryDashboardScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. WELCOME BANNER WITH DP PICKER
+                  // 1. WELCOME BANNER WITH PERMANENT DP
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(22),
@@ -305,69 +345,63 @@ class _ClientSummaryDashboardScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                // 💡 Clickable Profile Photo (WhatsApp DP style)
-                                GestureDetector(
-                                  onTap: _pickProfileImage,
-                                  child: Stack(
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 24,
-                                        backgroundColor: const Color(0xFF38BDF8),
-                                        backgroundImage: _profileImage != null
-                                            ? FileImage(_profileImage!)
-                                            : null,
-                                        child: _profileImage == null
-                                            ? Text(
-                                                widget.clientName.isNotEmpty
-                                                    ? widget.clientName[0]
-                                                    : 'M',
-                                                style: const TextStyle(
-                                                  color: Color(0xFF0F172A),
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
-                                                ),
-                                              )
-                                            : null,
-                                      ),
-                                      Positioned(
-                                        bottom: 0,
-                                        right: 0,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(2),
-                                          decoration: const BoxDecoration(
-                                            color: Colors.white,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.camera_alt,
-                                            size: 12,
-                                            color: Color(0xFF0F172A),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                            GestureDetector(
+                              onTap: _pickProfileImage,
+                              child: Stack(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 24,
+                                    backgroundColor: const Color(0xFF38BDF8),
+                                    backgroundImage: _profileImage != null
+                                        ? FileImage(_profileImage!)
+                                        : null,
+                                    child: _profileImage == null
+                                        ? Text(
+                                            widget.clientName.isNotEmpty
+                                                ? widget.clientName[0]
+                                                : 'M',
+                                            style: const TextStyle(
+                                              color: Color(0xFF0F172A),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                            ),
+                                          )
+                                        : null,
                                   ),
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  "Welcome, ${widget.clientName} 👋",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.camera_alt,
+                                        size: 12,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                         ],
+                            const SizedBox(width: 12),
+                            Text(
+                              "Welcome, ${widget.clientName} 👋",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 20),
                         const Text(
-                          "Project Overview",
+                          "Project Overview & Health",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -378,7 +412,7 @@ class _ClientSummaryDashboardScreenState
                         Row(
                           children: [
                             const Icon(
-                              Icons.location_on,
+                              Icons.business_center_rounded,
                               color: Color(0xFF94A3B8),
                               size: 14,
                             ),
@@ -398,91 +432,7 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // 2. ACTIVE SITES SECTION
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.apartment_rounded,
-                                  color: Color(0xFF38BDF8),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "Active Sites (${_activeSites.length})",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF38BDF8).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Text(
-                                "Chalu Sites",
-                                style: TextStyle(
-                                  color: Color(0xFF38BDF8),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
-                        const SizedBox(height: 10),
-                        
-                        SizedBox(
-                          height: 160,
-                          child: _activeSites.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    "Kutlihi active site nahiye.",
-                                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  itemCount: _activeSites.length,
-                                  itemBuilder: (context, index) {
-                                    final site = _activeSites[index];
-                                    return _buildSiteItem(
-                                      site.siteName,
-                                      site.status,
-                                      const Color(0xFF34D399),
-                                    );
-                                  },
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // 3. FINANCIAL SUMMARY
+                  // Financial Summary Card
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -522,39 +472,19 @@ class _ClientSummaryDashboardScreenState
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: LinearProgressIndicator(
-                            value: _totalBudget > 0
-                                ? (_totalReceived / _totalBudget).clamp(0.0, 1.0)
-                                : 0.0,
-                            minHeight: 8,
-                            backgroundColor: Colors.white.withValues(alpha: 0.05),
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFF38BDF8),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
 
                   const SizedBox(height: 20),
 
-                  // 4. EXPENSE BREAKDOWN & WHITE BACKGROUND BAR CHART SECTION
+                  // 📊 DARK THEME VERTICAL CHART SECTION
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: const Color(0xFF1E293B),
                       borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,7 +495,7 @@ class _ClientSummaryDashboardScreenState
                             const Text(
                               "Expense Breakdown",
                               style: TextStyle(
-                                color: Color(0xFF0F172A),
+                                color: Colors.white,
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -573,7 +503,7 @@ class _ClientSummaryDashboardScreenState
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
+                                color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Text(
@@ -581,99 +511,61 @@ class _ClientSummaryDashboardScreenState
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
+                                  color: Color(0xFF38BDF8),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: SizedBox(
-                            height: 16,
-                            child: Row(
-                              children: [
-                                if (grandTotal > 0) ...[
-                                  Expanded(
-                                    flex: (_expenseSummary.materialTotal * 100 ~/ grandTotal).clamp(1, 100),
-                                    child: Container(color: const Color(0xFF0284C7)),
-                                  ),
-                                  Expanded(
-                                    flex: (_expenseSummary.labourTotal * 100 ~/ grandTotal).clamp(1, 100),
-                                    child: Container(color: const Color(0xFFD97706)),
-                                  ),
-                                  Expanded(
-                                    flex: (_expenseSummary.vendorTotal * 100 ~/ grandTotal).clamp(1, 100),
-                                    child: Container(color: const Color(0xFF7C3AED)),
-                                  ),
-                                  Expanded(
-                                    flex: (_expenseSummary.equipmentTotal * 100 ~/ grandTotal).clamp(1, 100),
-                                    child: Container(color: const Color(0xFF0D9488)),
-                                  ),
-                                  Expanded(
-                                    flex: (_expenseSummary.extraTotal * 100 ~/ grandTotal).clamp(1, 100),
-                                    child: Container(color: const Color(0xFFDC2626)),
-                                  ),
-                                ] else
-                                  Expanded(
-                                    flex: 1,
-                                    child: Container(color: Colors.grey.shade300),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
 
-                        Column(
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildWhiteBgChartLegendItem(
-                                    "Material",
-                                    "₹ ${_formatCurrency(_expenseSummary.materialTotal)}",
-                                    const Color(0xFF0284C7),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _buildWhiteBgChartLegendItem(
-                                    "Labour",
-                                    "₹ ${_formatCurrency(_expenseSummary.labourTotal)}",
-                                    const Color(0xFFD97706),
-                                  ),
-                                ),
-                              ],
+                            // Left Y-Axis Labels
+                            SizedBox(
+                              height: 160,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(_formatShortCurrency(maxAmount), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                  Text(_formatShortCurrency(maxAmount * 0.75), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                  Text(_formatShortCurrency(maxAmount * 0.5), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                  Text(_formatShortCurrency(maxAmount * 0.25), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                  const Text("0", style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildWhiteBgChartLegendItem(
-                                    "Vendor",
-                                    "₹ ${_formatCurrency(_expenseSummary.vendorTotal)}",
-                                    const Color(0xFF7C3AED),
+                            const SizedBox(width: 12),
+
+                            // Vertical Bars Container with Grid Lines
+                            Expanded(
+                              child: Stack(
+                                children: [
+                                  SizedBox(
+                                    height: 160,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: List.generate(5, (_) => Divider(color: Colors.white.withValues(alpha: 0.05), height: 1)),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _buildWhiteBgChartLegendItem(
-                                    "Equipment",
-                                    "₹ ${_formatCurrency(_expenseSummary.equipmentTotal)}",
-                                    const Color(0xFF0D9488),
+                                  SizedBox(
+                                    height: 160,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        _buildVerticalBar("Mat.", _expenseSummary.materialTotal, maxAmount, const Color(0xFF38BDF8)),
+                                        _buildVerticalBar("Lab.", _expenseSummary.labourTotal, maxAmount, const Color(0xFFF59E0B)),
+                                        _buildVerticalBar("Vend.", _expenseSummary.vendorTotal, maxAmount, const Color(0xFFA855F7)),
+                                        _buildVerticalBar("Equip.", _expenseSummary.equipmentTotal, maxAmount, const Color(0xFF14B8A6)),
+                                        _buildVerticalBar("Extra", _expenseSummary.extraTotal, maxAmount, const Color(0xFFEF4444)),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            _buildWhiteBgChartLegendItem(
-                              "Extra / Misc",
-                              "₹ ${_formatCurrency(_expenseSummary.extraTotal)}",
-                              const Color(0xFFDC2626),
-                              isFullWidth: true,
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -681,59 +573,6 @@ class _ClientSummaryDashboardScreenState
                     ),
                   ),
 
-                  const SizedBox(height: 16),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildCategoryCard(
-                          title: "Material",
-                          amount: "₹ ${_formatCurrency(_expenseSummary.materialTotal)}",
-                          icon: Icons.inventory_2_outlined,
-                          color: const Color(0xFF38BDF8),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildCategoryCard(
-                          title: "Labour",
-                          amount: "₹ ${_formatCurrency(_expenseSummary.labourTotal)}",
-                          icon: Icons.groups_outlined,
-                          color: const Color(0xFFF59E0B),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildCategoryCard(
-                          title: "Vendor",
-                          amount: "₹ ${_formatCurrency(_expenseSummary.vendorTotal)}",
-                          icon: Icons.local_shipping_outlined,
-                          color: const Color(0xFFA855F7),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildCategoryCard(
-                          title: "Equipment",
-                          amount: "₹ ${_formatCurrency(_expenseSummary.equipmentTotal)}",
-                          icon: Icons.construction_outlined,
-                          color: const Color(0xFF14B8A6),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildCategoryCard(
-                    title: "Extra / Misc Kharch",
-                    amount: "₹ ${_formatCurrency(_expenseSummary.extraTotal)}",
-                    icon: Icons.more_horiz_outlined,
-                    color: const Color(0xFFEF4444),
-                    isFullWidth: true,
-                  ),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -741,128 +580,41 @@ class _ClientSummaryDashboardScreenState
     );
   }
 
-  Widget _buildSiteItem(String name, String status, Color dotColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ],
+  Widget _buildVerticalBar(String label, double amount, double maxAmount, Color color) {
+    double barHeight = (amount / maxAmount) * 130.0;
+    if (barHeight < 10.0) barHeight = 10.0;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Container(
+          width: 24,
+          height: barHeight,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
           ),
-          Text(
-            status,
-            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF94A3B8),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildWhiteBgChartLegendItem(String label, String amount, Color color, {bool isFullWidth = false}) {
-    return Container(
-      width: isFullWidth ? double.infinity : null,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 12, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-          Text(
-            amount,
-            style: const TextStyle(color: Color(0xFF0F172A), fontSize: 12, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryCard({
-    required String title,
-    required String amount,
-    required IconData icon,
-    required Color color,
-    bool isFullWidth = false,
-  }) {
-    return Container(
-      width: isFullWidth ? double.infinity : null,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF94A3B8),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                amount,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  String _formatShortCurrency(double amount) {
+    if (amount >= 100000) {
+      return '${(amount / 100000).toStringAsFixed(1)}L';
+    } else if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(0)}K';
+    }
+    return amount.toStringAsFixed(0);
   }
 
   Widget _buildFinancialItem(String label, String amount, Color color) {
