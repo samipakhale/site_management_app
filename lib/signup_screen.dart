@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // 👉 Firestore import kela ahe
 import 'home_screen.dart';
 import 'login_screen.dart';
 
@@ -20,7 +21,7 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscureConfirmPassword = true;
 
   Future<void> _handleSignUp() async {
-    String email = _emailController.text.trim();
+    String email = _emailController.text.trim().toLowerCase(); // 👉 Lowercase handling
     String password = _passwordController.text.trim();
     String confirmPassword = _confirmPasswordController.text.trim();
 
@@ -47,14 +48,27 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Direct Firebase Email Sign-Up
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      // 1. Firebase Email Sign-Up
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
+      // 2. 🌟 Firestore madhe user data securely save kara
+      if (userCredential.user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
+          'uid': userCredential.user!.uid,
+          'email': email,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
       if (!mounted) return;
 
+      setState(() => _isLoading = false);
       _showSnackBar('Account successfully create zale!', Colors.green);
 
       // Navigate to Home Screen

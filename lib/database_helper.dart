@@ -72,15 +72,16 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Get Sites from Firestore
+  // 👉 Get Sites from Firestore with Server Source fallback
   Future<List<Map<String, dynamic>>> getSites() async {
     if (currentUserIdentifier == null) return [];
     try {
+      // Reinstall nantar fresh data milnyasathi ServerSource vapru shakto
       QuerySnapshot snapshot = await _firestore
           .collection('users')
           .doc(currentUserIdentifier)
           .collection('sites')
-          .get();
+          .get(const GetOptions(source: Source.serverAndCache)); // 👉 Server ani cache dono kadun data fetch karel
 
       return snapshot.docs.map((doc) => {'name': doc['name'].toString()}).toList();
     } catch (e) {
