@@ -45,7 +45,7 @@ class ClientSummaryDashboardScreen extends StatefulWidget {
   const ClientSummaryDashboardScreen({
     super.key,
     this.clientName = "Mahesh Sir",
-    this.defaultSiteName = "Maher Interior & Works",
+    this.defaultSiteName = "Mahesh Dashboard & Workspaces",
   });
 
   @override
@@ -238,7 +238,7 @@ class _ClientSummaryDashboardScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              "MAHER CONTRACTOR",
+              "My projects",
               style: TextStyle(
                 color: Color(0xFF38BDF8),
                 fontSize: 10,
@@ -344,7 +344,7 @@ class _ClientSummaryDashboardScreenState
                         ),
                         const SizedBox(height: 20),
                         const Text(
-                          "Project Overview & Health",
+                          "Project Overview",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -418,7 +418,7 @@ class _ClientSummaryDashboardScreenState
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Text(
-                                "Chalu Sites",
+                                "Sites",
                                 style: TextStyle(
                                   color: Color(0xFF38BDF8),
                                   fontSize: 10,
