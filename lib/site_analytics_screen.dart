@@ -32,6 +32,7 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
   }
 
   Future<void> _loadAnalyticsData() async {
+    setState(() => _isLoading = true);
     List<String> categories = ['Material', 'Labour', 'Equipment', 'Vendor', 'Other Expenses'];
     Map<String, double> tempMap = {};
     double grandTotal = 0.0;
@@ -122,13 +123,11 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                         ),
                       ),
                       const SizedBox(height: 30),
-
                       const Text(
                         'Expense Distribution (Pie Chart)',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
                       ),
                       const SizedBox(height: 16),
-
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -168,7 +167,6 @@ class _SiteAnalyticsScreenState extends State<SiteAnalyticsScreen> {
                               ),
                             ),
                             const SizedBox(height: 20),
-
                             Wrap(
                               spacing: 16,
                               runSpacing: 10,

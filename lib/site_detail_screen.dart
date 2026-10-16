@@ -34,6 +34,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   }
 
   Future<void> _loadSiteData() async {
+    setState(() => _isLoadingTotal = true);
     double grandTotal = 0.0;
     Map<String, double> tempTotals = {};
 
@@ -89,7 +90,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                 MaterialPageRoute(
                   builder: (context) => SiteAnalyticsScreen(siteName: widget.siteName),
                 ),
-              );
+              ).then((_) => _loadSiteData());
             },
           ),
           const SizedBox(width: 8),

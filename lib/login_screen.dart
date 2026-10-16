@@ -48,7 +48,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       if (isValid) {
-        DatabaseHelper.currentUserIdentifier = identifier.trim().toLowerCase();
 
         if (!mounted) return;
 

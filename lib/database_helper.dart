@@ -1,15 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   DatabaseHelper._init();
 
-  static String? currentUserIdentifier;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // 👉 Get current user UID directly from Firebase Auth
+  String? get currentUserIdentifier {
+    return _auth.currentUser?.uid;
+  }
 
   // 👉 Register User with Firebase Auth & Firestore
   Future<bool> registerUser(String identifier, String password) async {
@@ -49,13 +52,7 @@ class DatabaseHelper {
         password: password.trim(),
       );
 
-      if (credential.user != null) {
-        currentUserIdentifier = credential.user!.uid;
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('current_user', currentUserIdentifier!);
-        return true;
-      }
-      return false;
+      return credential.user != null;
     } catch (e) {
       debugPrint('Firebase Login Error: $e');
       return false;
@@ -137,7 +134,7 @@ class DatabaseHelper {
   }
 
   // 👉 Delete Expense from Firestore
-  Future<void> deleteExpenseById(String siteName, String categoryName, int id) async {
+  Future<void> deleteExpenseById(String siteName, String categoryName, dynamic id) async {
     if (currentUserIdentifier == null) return;
     try {
       await _firestore

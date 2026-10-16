@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'database_helper.dart';
 import 'login_screen.dart';
 import 'site_detail_screen.dart';
@@ -78,108 +78,117 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          elevation: 10,
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          elevation: 12,
           backgroundColor: Colors.white,
-          contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  shape: BoxShape.circle,
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFFECACA), width: 3),
+                  ),
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 34,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.logout_rounded,
-                  color: Colors.redAccent,
-                  size: 32,
+                const SizedBox(height: 20),
+                const Text(
+                  'Log Out',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.3,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Log Out',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
+                const SizedBox(height: 8),
+                const Text(
+                  'Are you sure you want to log out from Site Management?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.4,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Are you sure you want to log out of your account?',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade300),
-                        ),
-                      ),
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
+                const SizedBox(height: 28),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            backgroundColor: const Color(0xFFF8FAFC),
+                            foregroundColor: const Color(0xFF475569),
+                          ),
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () async {
-                        Navigator.of(dialogContext).pop();
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 48,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEF4444),
+                            foregroundColor: Colors.white,
+                            elevation: 2,
+                            shadowColor: Colors.red.withValues(alpha: 0.3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          onPressed: () async {
+                            Navigator.of(dialogContext).pop();
 
-                        DatabaseHelper.currentUserIdentifier = null;
+                            // Firebase Auth Sign Out
+                            await FirebaseAuth.instance.signOut();
 
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setBool('isLoggedIn', false);
-                        await prefs.remove('userIdentifier');
-                        await prefs.remove('userPassword');
+                            if (!mounted) return;
 
-                        if (!mounted) return;
-
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const LoginScreen()),
-                        );
-                      },
-                      child: const Text(
-                        'Log Out',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const LoginScreen()),
+                            );
+                          },
+                          child: const Text(
+                            'Log Out',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },

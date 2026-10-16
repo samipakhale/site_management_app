@@ -73,9 +73,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     String query = _searchController.text.toLowerCase();
     setState(() {
       _filteredExpenses = _expenses.where((exp) {
-        final title = exp['title']?.toLowerCase() ?? '';
-        final desc = exp['desc']?.toLowerCase() ?? '';
-        final date = exp['date']?.toLowerCase() ?? '';
+        final title = exp['title']?.toString().toLowerCase() ?? '';
+        final desc = exp['desc']?.toString().toLowerCase() ?? '';
+        final date = exp['date']?.toString().toLowerCase() ?? '';
         return title.contains(query) || desc.contains(query) || date.contains(query);
       }).toList();
     });
@@ -107,7 +107,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     return total;
   }
 
-  Future<void> _deleteExpense(int id) async {
+  Future<void> _deleteExpense(dynamic id) async {
     await DatabaseHelper.instance.deleteExpenseById(widget.siteName, widget.categoryTitle, id);
     _loadExpenses();
     if (mounted) {
@@ -126,20 +126,27 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     Map<String, Map<String, dynamic>> summary = {};
 
     var monthFiltered = _expenses.where((exp) {
-      String dateStr = exp['date'] ?? '';
-      if (dateStr.length >= 7) {
-        String yearPart = dateStr.substring(0, 4);
-        String monthPart = dateStr.substring(5, 7);
-        return yearPart == _selectedYear && monthPart == _selectedMonth;
+      String dateStr = exp['date']?.toString() ?? '';
+      if (dateStr.isNotEmpty) {
+        DateTime? parsedDate = DateTime.tryParse(dateStr.split(' ')[0]);
+        if (parsedDate != null) {
+          String yearStr = parsedDate.year.toString();
+          String monthStr = parsedDate.month.toString().padLeft(2, '0');
+          return yearStr == _selectedYear && monthStr == _selectedMonth;
+        } else if (dateStr.length >= 7) {
+          String yearPart = dateStr.substring(0, 4);
+          String monthPart = dateStr.substring(5, 7);
+          return yearPart == _selectedYear && monthPart == _selectedMonth;
+        }
       }
       return false;
     }).toList();
 
     for (var entry in monthFiltered) {
       String workerName = (entry['title'] != null && entry['title'].toString().trim().isNotEmpty)
-          ? entry['title']
+          ? entry['title'].toString()
           : 'Labour';
-      String desc = entry['desc'] ?? '';
+      String desc = entry['desc']?.toString() ?? '';
       double amount = double.tryParse(entry['amount'].toString()) ?? 0.0;
 
       if (!summary.containsKey(workerName)) {
@@ -232,25 +239,32 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
       _selectedPaymentMode = _paymentModeOptions.first;
     }
 
-    final TextEditingController titleController = TextEditingController(text: isEditing ? existingExpense['title'] : '');
+    final TextEditingController titleController = TextEditingController(text: isEditing ? existingExpense['title']?.toString() : '');
     final TextEditingController qtyController = TextEditingController();
-    final TextEditingController amountController = TextEditingController(text: isEditing ? existingExpense['amount'].toString() : '');
+    final TextEditingController amountController = TextEditingController(text: isEditing ? existingExpense['amount']?.toString() : '');
     final TextEditingController descController = TextEditingController();
 
     if (isEditing && existingExpense['desc'] != null) {
-      descController.text = existingExpense['desc'];
+      descController.text = existingExpense['desc'].toString();
     }
 
     DateTime selectedDate = isEditing && existingExpense['date'] != null
         ? (DateTime.tryParse(existingExpense['date'].toString().split(' ')[0]) ?? DateTime.now())
         : DateTime.now();
 
-    TimeOfDay selectedTime = isEditing && existingExpense['date'] != null
-        ? (TimeOfDay(
-            hour: int.tryParse(existingExpense['date'].toString().split(' ')[1].split(':')[0]) ?? DateTime.now().hour,
-            minute: int.tryParse(existingExpense['date'].toString().split(' ')[1].split(':')[1]) ?? DateTime.now().minute,
-          ))
-        : TimeOfDay.now();
+    TimeOfDay selectedTime = TimeOfDay.now();
+    if (isEditing && existingExpense['date'] != null) {
+      try {
+        var parts = existingExpense['date'].toString().split(' ');
+        if (parts.length > 1) {
+          var timeParts = parts[1].split(':');
+          selectedTime = TimeOfDay(
+            hour: int.tryParse(timeParts[0]) ?? DateTime.now().hour,
+            minute: int.tryParse(timeParts[1]) ?? DateTime.now().minute,
+          );
+        }
+      } catch (_) {}
+    }
 
     showDialog(
       context: context,
@@ -595,7 +609,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                     String formattedDateTime = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')} ${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
 
                     Map<String, dynamic> expenseData = {
-                      'id': isEditing ? existingExpense['id'] : DateTime.now().millisecondsSinceEpoch,
+                      'id': isEditing ? existingExpense['id'].toString() : DateTime.now().millisecondsSinceEpoch.toString(),
                       'title': expenseTitle,
                       'amount': amountController.text.trim(),
                       'desc': fullDesc,
@@ -743,16 +757,16 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                                     children: [
                                       Text(
                                         (exp['title'] != null && exp['title'].toString().trim().isNotEmpty && exp['title'].toString() != 'null')
-                                            ? exp['title']
+                                            ? exp['title'].toString()
                                             : widget.categoryTitle,
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
                                       ),
                                       const SizedBox(height: 4),
                                       if (exp['desc'] != null && exp['desc'].toString().isNotEmpty)
-                                        Text(exp['desc'], style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                                        Text(exp['desc'].toString(), style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                                       const SizedBox(height: 2),
                                       Text(
-                                        exp['date'],
+                                        exp['date']?.toString() ?? '',
                                         style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
                                       ),
                                     ],
