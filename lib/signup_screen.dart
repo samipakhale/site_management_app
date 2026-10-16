@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // 👉 Firestore import kela ahe
+import 'database_helper.dart'; // 👉 DatabaseHelper import kela ahe
 import 'home_screen.dart';
 import 'login_screen.dart';
 
@@ -20,8 +20,16 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _handleSignUp() async {
-    String email = _emailController.text.trim().toLowerCase(); // 👉 Lowercase handling
+    String email = _emailController.text.trim().toLowerCase(); 
     String password = _passwordController.text.trim();
     String confirmPassword = _confirmPasswordController.text.trim();
 
@@ -48,34 +56,23 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Firebase Email Sign-Up
-      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      // 2. 🌟 Firestore madhe user data securely save kara
-      if (userCredential.user != null) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set({
-          'uid': userCredential.user!.uid,
-          'email': email,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
+      // 👉 DatabaseHelper द्वारे Firebase आणि Local SQLite मध्ये एकाच वेळी रजिस्टर करा
+      bool success = await DatabaseHelper.instance.registerUser(email, password);
 
       if (!mounted) return;
-
       setState(() => _isLoading = false);
-      _showSnackBar('Account successfully create zale!', Colors.green);
 
-      // Navigate to Home Screen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
+      if (success) {
+        _showSnackBar('Account successfully create zale!', Colors.green);
+
+        // यशस्वी साइन अप झाल्यावर Home Screen वर जा
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      } else {
+        _showSnackBar('Sign Up fail zale. Ha Email adhiich registered asel.', Colors.red);
+      }
     } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
       
@@ -98,6 +95,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _showSnackBar(String message, Color backgroundColor) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
