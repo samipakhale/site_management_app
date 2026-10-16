@@ -14,21 +14,22 @@ class DatabaseHelper {
     return _auth.currentUser?.uid;
   }
 
-  // 👉 Register User with Firebase Auth & Firestore
-  Future<bool> registerUser(String identifier, String password) async {
-    try {
-      String email = identifier.contains('@') 
-          ? identifier.trim().toLowerCase() 
-          : '${identifier.trim()}@sitemanagement.com';
+  // 👉 Get current user Email
+  String? get currentUserEmail {
+    return _auth.currentUser?.email;
+  }
 
+  // 👉 Register User with Email & Password
+  Future<bool> registerUser(String email, String password) async {
+    try {
       UserCredential credential = await _auth.createUserWithEmailAndPassword(
-        email: email,
+        email: email.trim().toLowerCase(),
         password: password.trim(),
       );
 
       if (credential.user != null) {
         await _firestore.collection('users').doc(credential.user!.uid).set({
-          'identifier': identifier.trim().toLowerCase(),
+          'email': email.trim().toLowerCase(),
           'createdAt': FieldValue.serverTimestamp(),
         });
         return true;
@@ -40,15 +41,11 @@ class DatabaseHelper {
     }
   }
 
-  // 👉 Check Login with Firebase Auth
-  Future<bool> checkLogin(String identifier, String password) async {
+  // 👉 Check Login with Email & Password
+  Future<bool> checkLogin(String email, String password) async {
     try {
-      String email = identifier.contains('@') 
-          ? identifier.trim().toLowerCase() 
-          : '${identifier.trim()}@sitemanagement.com';
-
       UserCredential credential = await _auth.signInWithEmailAndPassword(
-        email: email,
+        email: email.trim().toLowerCase(),
         password: password.trim(),
       );
 

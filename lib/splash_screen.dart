@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 👉 Firebase Auth import kela
 import 'welcome_screen.dart';
+import 'home_screen.dart'; // 👉 HomeScreen import kela
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,18 +14,29 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _navigateToWelcome();
+    _checkUserAndNavigate();
   }
 
-  void _navigateToWelcome() async {
-    Future.delayed(const Duration(milliseconds: 3000), () async {
-      if (!mounted) return;
+  void _checkUserAndNavigate() async {
+    await Future.delayed(const Duration(milliseconds: 3000));
+    if (!mounted) return;
 
+    // 👉 Check if user is already logged in via Firebase
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      // Jar user login asel tar direct HomeScreen var ja
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } else {
+      // Jar login nasel tar WelcomeScreen / LoginScreen var ja
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const WelcomeScreen()),
       );
-    });
+    }
   }
 
   @override
