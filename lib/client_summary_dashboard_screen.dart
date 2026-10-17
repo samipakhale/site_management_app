@@ -129,37 +129,59 @@ class _ClientSummaryDashboardScreenState
         for (var siteMap in rawSites) {
           String sName = siteMap['name']?.toString() ?? 'Unnamed Site';
 
+          // 1. Database madhun site chi received/paid amount fetch karne
+          double siteReceived = double.tryParse(
+            (siteMap['receivedAmount'] ?? siteMap['received_amount'] ?? 0.0).toString(),
+          ) ?? 0.0;
+
+          double siteTotalExpense = 0.0;
+
+          try {
+            List<Map<String, dynamic>> matExpenses = await DatabaseHelper.instance.getExpenses(sName, 'material');
+            double matSum = _calculateSum(matExpenses);
+            totalMaterial += matSum;
+            siteTotalExpense += matSum;
+
+            List<Map<String, dynamic>> labExpenses = await DatabaseHelper.instance.getExpenses(sName, 'labour');
+            double labSum = _calculateSum(labExpenses);
+            totalLabour += labSum;
+            siteTotalExpense += labSum;
+
+            List<Map<String, dynamic>> venExpenses = await DatabaseHelper.instance.getExpenses(sName, 'vendor');
+            double venSum = _calculateSum(venExpenses);
+            totalVendor += venSum;
+            siteTotalExpense += venSum;
+
+            List<Map<String, dynamic>> eqExpenses = await DatabaseHelper.instance.getExpenses(sName, 'equipment');
+            double eqSum = _calculateSum(eqExpenses);
+            totalEquipment += eqSum;
+            siteTotalExpense += eqSum;
+
+            List<Map<String, dynamic>> extExpenses = await DatabaseHelper.instance.getExpenses(sName, 'extra');
+            double extSum = _calculateSum(extExpenses);
+            totalExtra += extSum;
+            siteTotalExpense += extSum;
+
+            List<Map<String, dynamic>> miscExpenses = await DatabaseHelper.instance.getExpenses(sName, 'misc');
+            double miscSum = _calculateSum(miscExpenses);
+            totalExtra += miscSum;
+            siteTotalExpense += miscSum;
+
+            List<Map<String, dynamic>> otherExpenses = await DatabaseHelper.instance.getExpenses(sName, 'other');
+            double otherSum = _calculateSum(otherExpenses);
+            totalExtra += otherSum;
+            siteTotalExpense += otherSum;
+          } catch (_) {}
+
+          // 2. Pratyek sitecha dynamic total expense ani received amount addd karne
           loadedSites.add(
             SiteModel(
               siteName: sName,
               status: "Ongoing",
-              budget: 500000.0,
-              receivedAmount: 350000.0,
+              budget: siteTotalExpense, 
+              receivedAmount: siteReceived, 
             ),
           );
-
-          try {
-            List<Map<String, dynamic>> matExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Material');
-            totalMaterial += _calculateSum(matExpenses);
-
-            List<Map<String, dynamic>> labExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Labour');
-            totalLabour += _calculateSum(labExpenses);
-
-            List<Map<String, dynamic>> venExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Vendor');
-            totalVendor += _calculateSum(venExpenses);
-
-            List<Map<String, dynamic>> eqExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Equipment');
-            totalEquipment += _calculateSum(eqExpenses);
-
-            List<Map<String, dynamic>> extExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Extra');
-            totalExtra += _calculateSum(extExpenses);
-
-            List<Map<String, dynamic>> miscExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Misc');
-            totalExtra += _calculateSum(miscExpenses);
-
-            List<Map<String, dynamic>> otherExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Other');
-            totalExtra += _calculateSum(otherExpenses);
-          } catch (_) {}
         }
       }
 
@@ -168,8 +190,8 @@ class _ClientSummaryDashboardScreenState
           SiteModel(
             siteName: widget.defaultSiteName,
             status: "Main Site - Ongoing",
-            budget: 1500000.0,
-            receivedAmount: 1050000.0,
+            budget: 0.0,
+            receivedAmount: 0.0,
           ),
         );
       }
@@ -196,9 +218,8 @@ class _ClientSummaryDashboardScreenState
   double _calculateSum(List<Map<String, dynamic>> expenses) {
     double sum = 0.0;
     for (var item in expenses) {
-      if (item.containsKey('amount')) {
-        sum += double.tryParse(item['amount'].toString()) ?? 0.0;
-      }
+      final amount = item['amount'] ?? item['cost'] ?? 0.0;
+      sum += double.tryParse(amount.toString()) ?? 0.0;
     }
     return sum;
   }
@@ -433,7 +454,7 @@ class _ClientSummaryDashboardScreenState
                         const SizedBox(height: 10),
                         
                         SizedBox(
-                          height: 130,
+                          height: 140,
                           child: _activeSites.isEmpty
                               ? const Center(
                                   child: Text(
@@ -445,10 +466,48 @@ class _ClientSummaryDashboardScreenState
                                   itemCount: _activeSites.length,
                                   itemBuilder: (context, index) {
                                     final site = _activeSites[index];
-                                    return _buildSiteItem(
-                                      site.siteName,
-                                      site.status,
-                                      const Color(0xFF34D399),
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                width: 8,
+                                                height: 8,
+                                                decoration: const BoxDecoration(
+                                                  color: Color(0xFF34D399),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                site.siteName,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              const Text('Total Expense', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                              Text(
+                                                '₹ ${_formatCurrency(site.budget)}',
+                                                style: const TextStyle(
+                                                  color: Color(0xFF38BDF8),
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     );
                                   },
                                 ),
@@ -620,7 +679,9 @@ class _ClientSummaryDashboardScreenState
                           MaterialPageRoute(
                             builder: (context) => const HomeScreen(),
                           ),
-                        );
+                        ).then((_) {
+                          _fetchDashboardData();
+                        });
                       },
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -648,42 +709,6 @@ class _ClientSummaryDashboardScreenState
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _buildSiteItem(String name, String status, Color dotColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-          Text(
-            status,
-            style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
-          ),
-        ],
-      ),
     );
   }
 

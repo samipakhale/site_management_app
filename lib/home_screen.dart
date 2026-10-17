@@ -234,32 +234,76 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: _sites.length,
                   itemBuilder: (context, index) {
                     final site = _sites[index];
-                    return Card(
-                      elevation: 1,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        leading: const CircleAvatar(
-                          backgroundColor: Colors.blueAccent,
-                          child: Icon(Icons.apartment, color: Colors.white),
+                    final siteName = site['name'] ?? '';
+
+                    return Dismissible(
+                      key: Key(siteName),
+                      direction: DismissDirection.endToStart,
+                      background: Container(
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        title: Text(
-                          site['name'] ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        child: const Icon(
+                          Icons.delete,
+                          color: Colors.white,
                         ),
-                        subtitle: const Text('Tap to view expenses', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => SiteDetailScreen(siteName: site['name']),
-                            ),
-                          ).then((_) {
-                            _loadSites();
-                          });
-                        },
+                      ),
+                      confirmDismiss: (direction) async {
+                        return await showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            title: const Text('Delete Site', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                            content: Text('Are you sure you want to delete "$siteName"? All expenses inside this site will be removed.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(false),
+                                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                onPressed: () => Navigator.of(ctx).pop(true),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      onDismissed: (direction) async {
+                        await DatabaseHelper.instance.deleteSite(siteName);
+                        _loadSites();
+                      },
+                      child: Card(
+                        elevation: 1,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          leading: const CircleAvatar(
+                            backgroundColor: Colors.blueAccent,
+                            child: Icon(Icons.apartment, color: Colors.white),
+                          ),
+                          title: Text(
+                            siteName,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          subtitle: const Text('Tap to view expenses', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => SiteDetailScreen(siteName: siteName),
+                              ),
+                            ).then((_) {
+                              _loadSites();
+                            });
+                          },
+                        ),
                       ),
                     );
                   },

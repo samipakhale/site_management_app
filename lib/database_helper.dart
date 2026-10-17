@@ -139,7 +139,22 @@ class DatabaseHelper {
       debugPrint('Delete Error: $e');
     }
   }
-
+//adde by me for swipe delete site//
+Future<void> deleteSite(String siteName) async {
+    if (currentUserIdentifier == null) return;
+    try {
+      await _firestore
+          .collection('users')
+          .doc(currentUserIdentifier)
+          .collection('sites')
+          .doc(siteName.trim())
+          .delete();
+    } catch (e) {
+      debugPrint('Delete Site Error: $e');
+    }
+  }
+  
+//changes end here 
   Future<void> updateExpense(String siteName, String categoryName, Map<String, dynamic> updatedExpense) async {
     await addExpense(siteName, categoryName, updatedExpense);
   }
