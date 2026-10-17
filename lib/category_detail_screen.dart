@@ -157,15 +157,16 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
         };
       }
 
-      if (desc.contains('Present (Full Day)')) {
-        summary[workerName]!['fullDays'] = (summary[workerName]!['fullDays'] as int) + 1;
-      } else if (desc.contains('Half Day')) {
+      // Flexible check to handle both old and new entries correctly
+      if (desc.contains('Half Day')) {
         summary[workerName]!['halfDays'] = (summary[workerName]!['halfDays'] as int) + 1;
       } else if (desc.contains('Absent')) {
         summary[workerName]!['absent'] = (summary[workerName]!['absent'] as int) + 1;
+      } else {
+        summary[workerName]!['fullDays'] = (summary[workerName]!['fullDays'] as int) + 1;
       }
 
-      if (desc.contains('Pay: Paid')) {
+      if (desc.contains('Pay: Paid') || desc.contains('Paid')) {
         summary[workerName]!['totalPaid'] = (summary[workerName]!['totalPaid'] as double) + amount;
       } else {
         summary[workerName]!['totalPending'] = (summary[workerName]!['totalPending'] as double) + amount;
@@ -230,6 +231,23 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     } else if (cat.contains('labour')) {
       _selectedLabourStatus = _labourStatusOptions.first;
       _selectedLabourPaymentStatus = _labourPaymentStatusOptions.first;
+      
+      if (isEditing && existingExpense['desc'] != null) {
+        String descStr = existingExpense['desc'].toString();
+        if (descStr.contains('Half Day')) {
+          _selectedLabourStatus = 'Half Day';
+        } else if (descStr.contains('Absent')) {
+          _selectedLabourStatus = 'Absent';
+        } else {
+          _selectedLabourStatus = 'Present (Full Day)';
+        }
+
+        if (descStr.contains('Paid')) {
+          _selectedLabourPaymentStatus = 'Paid';
+        } else {
+          _selectedLabourPaymentStatus = 'Pending';
+        }
+      }
     } else if (cat.contains('other') || cat.contains('expense')) {
       _selectedOtherCategory = _otherCategoryOptions.first;
       _selectedPaymentMode = _paymentModeOptions.first;
@@ -240,7 +258,17 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     final TextEditingController descController = TextEditingController();
 
     if (isEditing && existingExpense['desc'] != null) {
-      descController.text = existingExpense['desc'].toString();
+      String rawDesc = existingExpense['desc'].toString();
+      if (cat.contains('labour')) {
+        var parts = rawDesc.split(' - ');
+        if (parts.length > 1) {
+          descController.text = parts[1];
+        } else {
+          descController.text = '';
+        }
+      } else {
+        descController.text = rawDesc;
+      }
     }
 
     DateTime selectedDate = isEditing && existingExpense['date'] != null
@@ -538,8 +566,19 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                   }
 
                   if (amountController.text.trim().isNotEmpty) {
-                    // Clean description without any auto-generated quantity/unit strings
-                    String fullDesc = descController.text.trim();
+                    String userDesc = descController.text.trim();
+                    String fullDesc = userDesc;
+
+                    if (cat.contains('labour')) {
+                      String attendanceStatus = _selectedLabourStatus ?? 'Present (Full Day)';
+                      String paymentStatusText = 'Pay: ${_selectedLabourPaymentStatus ?? 'Pending'}';
+                      
+                      if (userDesc.isNotEmpty) {
+                        fullDesc = '$attendanceStatus, $paymentStatusText - $userDesc';
+                      } else {
+                        fullDesc = '$attendanceStatus, $paymentStatusText';
+                      }
+                    }
 
                     String formattedDateTime = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')} ${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
 

@@ -8,8 +8,8 @@ import 'database_helper.dart';
 class SiteModel {
   final String siteName;
   final String status;
-  final double budget;
-  final double receivedAmount;
+  double budget;
+  double receivedAmount;
 
   SiteModel({
     required this.siteName,
@@ -65,17 +65,22 @@ class _ClientSummaryDashboardScreenState
   );
   bool _isLoading = true;
 
+  double _totalReceivedOverride = 0.0;
+  double _totalPendingOverride = 0.0;
+  bool _isManualReceivedSet = false;
+  bool _isManualPendingSet = false;
+
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    _loadSavedProfileImage();
+    _loadSavedData();
     _fetchDashboardData();
   }
 
-  Future<void> _loadSavedProfileImage() async {
+  Future<void> _loadSavedData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       String? savedPath = prefs.getString('contractor_profile_image');
@@ -84,8 +89,22 @@ class _ClientSummaryDashboardScreenState
           _profileImage = File(savedPath);
         });
       }
+
+      if (prefs.containsKey('manual_total_received')) {
+        setState(() {
+          _totalReceivedOverride = prefs.getDouble('manual_total_received') ?? 0.0;
+          _isManualReceivedSet = true;
+        });
+      }
+
+      if (prefs.containsKey('manual_total_pending')) {
+        setState(() {
+          _totalPendingOverride = prefs.getDouble('manual_total_pending') ?? 0.0;
+          _isManualPendingSet = true;
+        });
+      }
     } catch (e) {
-      debugPrint("Load Image Error: $e");
+      debugPrint("Load Prefs Error: $e");
     }
   }
 
@@ -133,8 +152,8 @@ class _ClientSummaryDashboardScreenState
             SiteModel(
               siteName: sName,
               status: "Ongoing",
-              budget: 500000.0,
-              receivedAmount: 350000.0,
+              budget: 0.0,
+              receivedAmount: 0.0,
             ),
           );
 
@@ -168,8 +187,8 @@ class _ClientSummaryDashboardScreenState
           SiteModel(
             siteName: widget.defaultSiteName,
             status: "Main Site - Ongoing",
-            budget: 1500000.0,
-            receivedAmount: 1050000.0,
+            budget: 0.0,
+            receivedAmount: 0.0,
           ),
         );
       }
@@ -203,13 +222,92 @@ class _ClientSummaryDashboardScreenState
     return sum;
   }
 
-  double get _totalBudget =>
-      _activeSites.fold(0.0, (sum, site) => sum + site.budget);
+  // Total Budget = Saglya site chya expenses chi total (Grand Total), initially 0 asel jar expense nsel
+  double get _totalBudget => _expenseSummary.grandTotal;
 
-  double get _totalReceived =>
-      _activeSites.fold(0.0, (sum, site) => sum + site.receivedAmount);
+  // Jama (Received) initially 0, manual set kelyar ti disel
+  double get _totalReceived => _isManualReceivedSet
+      ? _totalReceivedOverride
+      : 0.0;
 
-  double get _totalPending => _totalBudget - _totalReceived;
+  // Pending Due initially 0, manual set kelyar ti disel nahi tar Budget - Received
+  double get _totalPending => _isManualPendingSet
+      ? _totalPendingOverride
+      : (_totalBudget - _totalReceived > 0 ? _totalBudget - _totalReceived : 0.0);
+
+  void _showEditFinancialDialog() {
+    final receivedController = TextEditingController(text: _totalReceived > 0 ? _totalReceived.toInt().toString() : '');
+    final pendingController = TextEditingController(text: _totalPending > 0 ? _totalPending.toInt().toString() : '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit Received & Pending', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: receivedController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Jama / Received Amount (₹)',
+                labelStyle: const TextStyle(color: Colors.white70),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white24)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF38BDF8))),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: pendingController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'Pending Due Amount (₹)',
+                labelStyle: const TextStyle(color: Colors.white70),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white24)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF38BDF8))),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF38BDF8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              double r = double.tryParse(receivedController.text.trim()) ?? 0.0;
+              double p = double.tryParse(pendingController.text.trim()) ?? 0.0;
+
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setDouble('manual_total_received', r);
+              await prefs.setDouble('manual_total_pending', p);
+
+              setState(() {
+                _totalReceivedOverride = r;
+                _totalPendingOverride = p;
+                _isManualReceivedSet = true;
+                _isManualPendingSet = true;
+              });
+
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Save', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -459,7 +557,7 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // 3. FINANCIAL SUMMARY
+                  // 3. FINANCIAL SUMMARY (WITH EDIT BUTTON)
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -470,13 +568,25 @@ class _ClientSummaryDashboardScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Financial Summary",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Financial Summary",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              constraints: const BoxConstraints(),
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF38BDF8), size: 22),
+                              tooltip: "Edit Received & Pending",
+                              onPressed: _showEditFinancialDialog,
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
                         Row(
@@ -745,7 +855,7 @@ class _ClientSummaryDashboardScreenState
         Text(
           amount,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -755,9 +865,17 @@ class _ClientSummaryDashboardScreenState
   }
 
   String _formatCurrency(double amount) {
-    return amount.toStringAsFixed(0).replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]},',
-        );
+    String str = amount.toInt().toString();
+    if (str.length <= 3) return str;
+    
+    String lastThree = str.substring(str.length - 3);
+    String otherNumbers = str.substring(0, str.length - 3);
+    
+    otherNumbers = otherNumbers.replaceAllMapped(
+      RegExp(r'(\d{1,2})(?=(\d{2})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+    
+    return '$otherNumbers,$lastThree';
   }
 }
