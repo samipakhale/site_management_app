@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
 import 'home_screen.dart';
 import 'database_helper.dart';
 
@@ -56,6 +57,7 @@ class ClientSummaryDashboardScreen extends StatefulWidget {
 class _ClientSummaryDashboardScreenState
     extends State<ClientSummaryDashboardScreen> {
   List<SiteModel> _activeSites = [];
+  List<Map<String, dynamic>> _allSitesLabours = [];
   CategoryExpenseSummary _expenseSummary = CategoryExpenseSummary(
     materialTotal: 0.0,
     labourTotal: 0.0,
@@ -65,10 +67,9 @@ class _ClientSummaryDashboardScreenState
   );
   bool _isLoading = true;
 
-  double _totalReceivedOverride = 0.0;
-  double _totalPendingOverride = 0.0;
-  bool _isManualReceivedSet = false;
-  bool _isManualPendingSet = false;
+  // Financial Summary States
+  double _totalBudget = 0.0;
+  double _totalReceived = 0.0;
 
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
@@ -90,21 +91,22 @@ class _ClientSummaryDashboardScreenState
         });
       }
 
-      if (prefs.containsKey('manual_total_received')) {
-        setState(() {
-          _totalReceivedOverride = prefs.getDouble('manual_total_received') ?? 0.0;
-          _isManualReceivedSet = true;
-        });
-      }
-
-      if (prefs.containsKey('manual_total_pending')) {
-        setState(() {
-          _totalPendingOverride = prefs.getDouble('manual_total_pending') ?? 0.0;
-          _isManualPendingSet = true;
-        });
-      }
+      setState(() {
+        _totalBudget = prefs.getDouble('dashboard_total_budget') ?? 0.0;
+        _totalReceived = prefs.getDouble('dashboard_total_received') ?? 0.0;
+      });
     } catch (e) {
       debugPrint("Load Prefs Error: $e");
+    }
+  }
+
+  Future<void> _saveFinancialPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble('dashboard_total_budget', _totalBudget);
+      await prefs.setDouble('dashboard_total_received', _totalReceived);
+    } catch (e) {
+      debugPrint("Save Financial Prefs Error: $e");
     }
   }
 
@@ -138,6 +140,8 @@ class _ClientSummaryDashboardScreenState
       List<Map<String, dynamic>> rawSites = await DatabaseHelper.instance.getSites();
 
       List<SiteModel> loadedSites = [];
+      List<Map<String, dynamic>> allLaboursTemp = [];
+
       double totalMaterial = 0.0;
       double totalLabour = 0.0;
       double totalVendor = 0.0;
@@ -164,6 +168,29 @@ class _ClientSummaryDashboardScreenState
             List<Map<String, dynamic>> labExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Labour');
             totalLabour += _calculateSum(labExpenses);
 
+            // Fetch Labour list and extract phone numbers dynamically
+            for (var lab in labExpenses) {
+              String desc = lab['desc']?.toString() ?? '';
+              String phoneNum = '';
+              
+              if (desc.contains('Phone:')) {
+                try {
+                  int startIndex = desc.indexOf('Phone:') + 7;
+                  int endIndex = desc.indexOf(' |', startIndex);
+                  if (endIndex != -1) {
+                    phoneNum = desc.substring(startIndex, endIndex).trim();
+                  }
+                } catch (_) {}
+              }
+
+              allLaboursTemp.add({
+                'siteName': sName,
+                'name': lab['title'] ?? 'Worker',
+                'phone': phoneNum,
+                'status': desc,
+              });
+            }
+
             List<Map<String, dynamic>> venExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Vendor');
             totalVendor += _calculateSum(venExpenses);
 
@@ -178,6 +205,10 @@ class _ClientSummaryDashboardScreenState
 
             List<Map<String, dynamic>> otherExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Other');
             totalExtra += _calculateSum(otherExpenses);
+             
+            List<Map<String, dynamic>> otherExpenseCat = await DatabaseHelper.instance.getExpenses(sName, 'Other Expense');
+            totalExtra += _calculateSum(otherExpenseCat);
+
           } catch (_) {}
         }
       }
@@ -195,6 +226,7 @@ class _ClientSummaryDashboardScreenState
 
       setState(() {
         _activeSites = loadedSites;
+        _allSitesLabours = allLaboursTemp;
         _expenseSummary = CategoryExpenseSummary(
           materialTotal: totalMaterial,
           labourTotal: totalLabour,
@@ -222,87 +254,92 @@ class _ClientSummaryDashboardScreenState
     return sum;
   }
 
-  // Total Budget = Saglya site chya expenses chi total (Grand Total), initially 0 asel jar expense nsel
-  double get _totalBudget => _expenseSummary.grandTotal;
-
-  // Jama (Received) initially 0, manual set kelyar ti disel
-  double get _totalReceived => _isManualReceivedSet
-      ? _totalReceivedOverride
-      : 0.0;
-
-  // Pending Due initially 0, manual set kelyar ti disel nahi tar Budget - Received
-  double get _totalPending => _isManualPendingSet
-      ? _totalPendingOverride
-      : (_totalBudget - _totalReceived > 0 ? _totalBudget - _totalReceived : 0.0);
+  //Direct Phone Call Function
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    if (phoneNumber.trim().isEmpty) return;
+    
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber.trim(),
+    );
+    
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      debugPrint("Could not launch $phoneNumber");
+    }
+  }
 
   void _showEditFinancialDialog() {
-    final receivedController = TextEditingController(text: _totalReceived > 0 ? _totalReceived.toInt().toString() : '');
-    final pendingController = TextEditingController(text: _totalPending > 0 ? _totalPending.toInt().toString() : '');
+    TextEditingController budgetController =
+        TextEditingController(text: _totalBudget > 0 ? _totalBudget.toStringAsFixed(0) : '');
+    TextEditingController receivedController =
+        TextEditingController(text: _totalReceived > 0 ? _totalReceived.toStringAsFixed(0) : '');
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Edit Received & Pending', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          "Edit Financial Summary",
+          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            TextField(
+              controller: budgetController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: "Total Budget (₹)",
+                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFF38BDF8)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: receivedController,
               keyboardType: TextInputType.number,
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
-                labelText: 'Jama / Received Amount (₹)',
-                labelStyle: const TextStyle(color: Colors.white70),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white24)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF38BDF8))),
-              ),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: pendingController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Pending Due Amount (₹)',
-                labelStyle: const TextStyle(color: Colors.white70),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white24)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF38BDF8))),
+                labelText: "Jama / Total Received (₹)",
+                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFF38BDF8)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel", style: TextStyle(color: Color(0xFF94A3B8))),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF38BDF8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () async {
-              double r = double.tryParse(receivedController.text.trim()) ?? 0.0;
-              double p = double.tryParse(pendingController.text.trim()) ?? 0.0;
-
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setDouble('manual_total_received', r);
-              await prefs.setDouble('manual_total_pending', p);
-
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38BDF8)),
+            onPressed: () {
               setState(() {
-                _totalReceivedOverride = r;
-                _totalPendingOverride = p;
-                _isManualReceivedSet = true;
-                _isManualPendingSet = true;
+                _totalBudget = double.tryParse(budgetController.text) ?? 0.0;
+                _totalReceived = double.tryParse(receivedController.text) ?? 0.0;
               });
-
-              if (ctx.mounted) {
-                Navigator.pop(ctx);
-              }
+              _saveFinancialPrefs();
+              Navigator.pop(context);
             },
-            child: const Text('Save', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold)),
+            child: const Text("Save", style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -312,6 +349,13 @@ class _ClientSummaryDashboardScreenState
   @override
   Widget build(BuildContext context) {
     double grandTotal = _expenseSummary.grandTotal;
+    
+    // Automatic Calculation: Pending Due from Client = Total Budget - Total Received (Jama)
+    double pendingFromClient = _totalBudget - _totalReceived;
+    if (pendingFromClient < 0) pendingFromClient = 0;
+
+    // Automatic Calculation: Remaining Budget = Total Budget - Total Expense (Kharch)
+    double remainingBudget = _totalBudget - grandTotal;
 
     double maxAmount = [
       _expenseSummary.materialTotal,
@@ -473,7 +517,234 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // 2. ACTIVE SITES SECTION
+                  // 2. FINANCIAL SUMMARY CARD (WITH AUTOMATIC PENDING CALCULATION)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.account_balance_wallet_rounded,
+                                  color: Color(0xFF38BDF8),
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  "Financial Summary",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.edit_rounded, color: Color(0xFF38BDF8), size: 18),
+                              onPressed: _showEditFinancialDialog,
+                              tooltip: "Edit Budget & Jama",
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _buildFinancialItem("Total Budget", "₹ ${_formatCurrency(_totalBudget)}", const Color(0xFF38BDF8)),
+                            _buildFinancialItem("Jama (Received)", "₹ ${_formatCurrency(_totalReceived)}", const Color(0xFF34D399)),
+                            _buildFinancialItem("Pending Due", "₹ ${_formatCurrency(pendingFromClient)}", const Color(0xFFF59E0B)),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Total Expense (Kharch)",
+                              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                            ),
+                            Text(
+                              "₹ ${_formatCurrency(grandTotal)}",
+                              style: const TextStyle(
+                                color: Color(0xFFEF4444),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              "Remaining Budget Shillak",
+                              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                            ),
+                            Text(
+                              "₹ ${_formatCurrency(remainingBudget < 0 ? 0 : remainingBudget)}",
+                              style: TextStyle(
+                                color: remainingBudget < 0 ? Colors.redAccent : const Color(0xFF38BDF8),
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 3. ALL SITES LABOUR & CALL SECTION
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.engineering_rounded,
+                                  color: Color(0xFF34D399),
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  "All Sites Labour & Call",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF34D399).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                "${_allSitesLabours.length} Workers",
+                                style: const TextStyle(
+                                  color: Color(0xFF34D399),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+                        const SizedBox(height: 10),
+                        
+                        SizedBox(
+                          height: 180,
+                          child: _allSitesLabours.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    "Konthichi labour mahiti uplabdh nahiye.",
+                                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: _allSitesLabours.length,
+                                  itemBuilder: (context, index) {
+                                    final worker = _allSitesLabours[index];
+                                    String name = worker['name'];
+                                    String siteName = worker['siteName'];
+                                    String phone = worker['phone'];
+
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const CircleAvatar(
+                                                radius: 14,
+                                                backgroundColor: Color(0xFF334155),
+                                                child: Icon(Icons.person, size: 14, color: Color(0xFF38BDF8)),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    name,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                  Row(
+                                                    children: [
+                                                      const Icon(Icons.location_on, size: 10, color: Color(0xFF38BDF8)),
+                                                      const SizedBox(width: 2),
+                                                      Text(
+                                                        siteName,
+                                                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.phone_in_talk_rounded, color: Color(0xFF34D399), size: 20),
+                                            onPressed: () {
+                                              if (phone.isNotEmpty) {
+                                                _makePhoneCall(phone);
+                                              } else {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(content: Text("Mobile number not added for this worker")),
+                                                );
+                                              }
+                                            },
+                                            tooltip: "Call $name",
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 4. ACTIVE SITES SECTION
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
@@ -557,65 +828,7 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // 3. FINANCIAL SUMMARY (WITH EDIT BUTTON)
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              "Financial Summary",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            IconButton(
-                              constraints: const BoxConstraints(),
-                              padding: EdgeInsets.zero,
-                              icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF38BDF8), size: 22),
-                              tooltip: "Edit Received & Pending",
-                              onPressed: _showEditFinancialDialog,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildFinancialItem(
-                              "Total Budget",
-                              "₹ ${_formatCurrency(_totalBudget)}",
-                              Colors.white,
-                            ),
-                            _buildFinancialItem(
-                              "Jama (Received)",
-                              "₹ ${_formatCurrency(_totalReceived)}",
-                              const Color(0xFF34D399),
-                            ),
-                            _buildFinancialItem(
-                              "Pending Due",
-                              "₹ ${_formatCurrency(_totalPending)}",
-                              const Color(0xFFEF4444),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // 4. EXPENSE BREAKDOWN COLUMN CHART
+                  // 5. EXPENSE BREAKDOWN COLUMN CHART
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -712,7 +925,7 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 24),
 
-                  // 5. VIEW SITE MANAGEMENT BUTTON
+                  // 6. VIEW SITE MANAGEMENT BUTTON
                   SizedBox(
                     width: double.infinity,
                     height: 56,
@@ -758,6 +971,27 @@ class _ClientSummaryDashboardScreenState
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildFinancialItem(String title, String value, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 
@@ -841,27 +1075,6 @@ class _ClientSummaryDashboardScreenState
       return '${(amount / 1000).toStringAsFixed(0)}K';
     }
     return amount.toStringAsFixed(0);
-  }
-
-  Widget _buildFinancialItem(String label, String amount, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          amount,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
-    );
   }
 
   String _formatCurrency(double amount) {

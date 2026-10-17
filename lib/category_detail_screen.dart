@@ -23,6 +23,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
 
   String _selectedMonth = DateTime.now().month.toString().padLeft(2, '0');
   String _selectedYear = DateTime.now().year.toString();
+  List<String> _yearsList = [DateTime.now().year.toString()]; // डायनॅमिक वर्षांसाठी लिस्ट
 
   final List<Map<String, String>> _monthsList = [
     {'val': '01', 'name': 'January'},
@@ -38,8 +39,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     {'val': '11', 'name': 'November'},
     {'val': '12', 'name': 'December'},
   ];
-
-  final List<String> _yearsList = ['2025', '2026', '2027', '2028'];
 
   @override
   void initState() {
@@ -61,9 +60,28 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
   Future<void> _loadExpenses() async {
     setState(() => _isLoading = true);
     final data = await DatabaseHelper.instance.getExpenses(widget.siteName, widget.categoryTitle);
+    
+    // डेटाबेस आणि एंट्रीजमधून उपलब्ध वर्षे डायनॅमिकली गोळा करणे
+    Set<String> yearsSet = {};
+    for (var exp in data) {
+      String dateStr = exp['date']?.toString() ?? '';
+      if (dateStr.isNotEmpty) {
+        String year = dateStr.substring(0, 4);
+        if (int.tryParse(year) != null) {
+          yearsSet.add(year);
+        }
+      }
+    }
+    yearsSet.add(DateTime.now().year.toString());
+    List<String> sortedYears = yearsSet.toList()..sort((a, b) => b.compareTo(a));
+
     setState(() {
       _expenses = data;
       _filteredExpenses = data;
+      _yearsList = sortedYears;
+      if (!_yearsList.contains(_selectedYear) && _yearsList.isNotEmpty) {
+        _selectedYear = _yearsList.first;
+      }
       _isLoading = false;
     });
   }
@@ -146,18 +164,31 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
       String desc = entry['desc']?.toString() ?? '';
       double amount = double.tryParse(entry['amount'].toString()) ?? 0.0;
 
+      String phoneNum = '';
+      if (desc.contains('Phone:')) {
+        try {
+          int startIndex = desc.indexOf('Phone:') + 7;
+          int endIndex = desc.indexOf(' |', startIndex);
+          if (endIndex != -1) {
+            phoneNum = desc.substring(startIndex, endIndex).trim();
+          }
+        } catch (_) {}
+      }
+
       if (!summary.containsKey(workerName)) {
         summary[workerName] = {
           'name': workerName,
+          'phone': phoneNum,
           'fullDays': 0,
           'halfDays': 0,
           'absent': 0,
           'totalPaid': 0.0,
           'totalPending': 0.0,
         };
+      } else if (summary[workerName]!['phone'].toString().isEmpty && phoneNum.isNotEmpty) {
+        summary[workerName]!['phone'] = phoneNum;
       }
 
-      // Flexible check to handle both old and new entries correctly
       if (desc.contains('Half Day')) {
         summary[workerName]!['halfDays'] = (summary[workerName]!['halfDays'] as int) + 1;
       } else if (desc.contains('Absent')) {
@@ -254,8 +285,22 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     }
 
     final TextEditingController titleController = TextEditingController(text: isEditing ? existingExpense['title']?.toString() : '');
+    final TextEditingController phoneController = TextEditingController();
     final TextEditingController amountController = TextEditingController(text: isEditing ? existingExpense['amount']?.toString() : '');
     final TextEditingController descController = TextEditingController();
+
+    if (isEditing && existingExpense['desc'] != null && cat.contains('labour')) {
+      String rawDesc = existingExpense['desc'].toString();
+      if (rawDesc.contains('Phone:')) {
+        try {
+          int startIndex = rawDesc.indexOf('Phone:') + 7;
+          int endIndex = rawDesc.indexOf(' |', startIndex);
+          if (endIndex != -1) {
+            phoneController.text = rawDesc.substring(startIndex, endIndex).trim();
+          }
+        } catch (_) {}
+      }
+    }
 
     if (isEditing && existingExpense['desc'] != null) {
       String rawDesc = existingExpense['desc'].toString();
@@ -338,6 +383,17 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                       controller: titleController,
                       decoration: InputDecoration(
                         labelText: 'Worker Name',
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: 'Mobile Number (Optional)',
                         filled: true,
                         fillColor: Colors.grey[100],
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -570,13 +626,15 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                     String fullDesc = userDesc;
 
                     if (cat.contains('labour')) {
+                      String phoneNum = phoneController.text.trim();
                       String attendanceStatus = _selectedLabourStatus ?? 'Present (Full Day)';
                       String paymentStatusText = 'Pay: ${_selectedLabourPaymentStatus ?? 'Pending'}';
                       
+                      String phonePart = phoneNum.isNotEmpty ? 'Phone: $phoneNum | ' : '';
                       if (userDesc.isNotEmpty) {
-                        fullDesc = '$attendanceStatus, $paymentStatusText - $userDesc';
+                        fullDesc = '$phonePart$attendanceStatus, $paymentStatusText - $userDesc';
                       } else {
-                        fullDesc = '$attendanceStatus, $paymentStatusText';
+                        fullDesc = '$phonePart$attendanceStatus, $paymentStatusText';
                       }
                     }
 
@@ -792,6 +850,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     );
   }
 
+  // --- CLASSY & PREMIUM MONTHLY REPORT UI DESIGN WITH DYNAMIC YEARS ---
   Widget _buildMonthlyReportView() {
     var summaryMap = _getMonthlyLabourSummary();
     var workersList = summaryMap.values.toList();
@@ -799,12 +858,14 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     return Column(
       children: [
         Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 2))],
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
+            ],
           ),
           child: Row(
             children: [
@@ -813,27 +874,29 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                   initialValue: _selectedMonth,
                   decoration: InputDecoration(
                     labelText: 'Month',
+                    labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   ),
-                  items: _monthsList.map((m) => DropdownMenuItem(value: m['val'], child: Text(m['name']!, style: const TextStyle(fontWeight: FontWeight.w600)))).toList(),
+                  items: _monthsList.map((m) => DropdownMenuItem(value: m['val'], child: Text(m['name']!, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)))).toList(),
                   onChanged: (val) => setState(() => _selectedMonth = val!),
                 ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  initialValue: _selectedYear,
+                  initialValue: _yearsList.contains(_selectedYear) ? _selectedYear : _yearsList.first,
                   decoration: InputDecoration(
                     labelText: 'Year',
+                    labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   ),
-                  items: _yearsList.map((y) => DropdownMenuItem(value: y, child: Text(y, style: const TextStyle(fontWeight: FontWeight.w600)))).toList(),
+                  items: _yearsList.map((y) => DropdownMenuItem(value: y, child: Text(y, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)))).toList(),
                   onChanged: (val) => setState(() => _selectedYear = val!),
                 ),
               ),
@@ -846,31 +909,37 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.assessment_outlined, size: 64, color: Colors.grey.shade300),
-                      const SizedBox(height: 12),
-                      const Text('No records for selected month/year.', style: TextStyle(color: Color(0xFF64748B), fontSize: 15, fontWeight: FontWeight.w500)),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle),
+                        child: Icon(Icons.assessment_outlined, size: 48, color: Colors.blue.shade400),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('No records found for selected month.', style: TextStyle(color: Color(0xFF64748B), fontSize: 15, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   itemCount: workersList.length,
                   itemBuilder: (context, index) {
                     var worker = workersList[index];
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 14),
+                      margin: const EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3))],
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 5)),
+                        ],
                       ),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(20),
                         child: Container(
                           decoration: const BoxDecoration(
-                            border: Border(left: BorderSide(color: Color(0xFF3B82F6), width: 4)),
+                            border: Border(left: BorderSide(color: Color(0xFF3B82F6), width: 5)),
                           ),
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(18),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -879,37 +948,65 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                                 children: [
                                   Row(
                                     children: [
-                                      const CircleAvatar(
-                                        radius: 16,
-                                        backgroundColor: Color(0xFFEFF6FF),
-                                        child: Icon(Icons.person, color: Color(0xFF3B82F6), size: 18),
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)]),
+                                          borderRadius: BorderRadius.circular(14),
+                                        ),
+                                        child: const Icon(Icons.person_rounded, color: Color(0xFF3B82F6), size: 22),
                                       ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        worker['name'],
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
+                                      const SizedBox(width: 12),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            worker['name'],
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Row(
+                                            children: [
+                                              const Icon(Icons.phone_rounded, size: 12, color: Colors.grey),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                worker['phone'].toString().isNotEmpty ? worker['phone'] : 'No Phone Added',
+                                                style: TextStyle(fontSize: 12, color: worker['phone'].toString().isNotEmpty ? Colors.grey.shade700 : Colors.red.shade300, fontWeight: FontWeight.w500),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      Text('Pending: ₹${worker['totalPending']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.redAccent)),
-                                      Text('Paid: ₹${worker['totalPaid']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.green)),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+                                        child: Text('Due: ₹${worker['totalPending']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.redAccent)),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
+                                        child: Text('Paid: ₹${worker['totalPaid']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.green)),
+                                      ),
                                     ],
                                   ),
                                 ],
                               ),
                               const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 12),
+                                padding: EdgeInsets.symmetric(vertical: 14),
                                 child: Divider(height: 1, color: Color(0xFFF1F5F9)),
                               ),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  _buildCountBadge('Full Days', '${worker['fullDays']}', Colors.blue.shade50, Colors.blue.shade700),
-                                  _buildCountBadge('Half Days', '${worker['halfDays']}', Colors.orange.shade50, Colors.orange.shade700),
-                                  _buildCountBadge('Absent', '${worker['absent']}', Colors.red.shade50, Colors.red.shade700),
+                                  _buildClassyCountBadge('Full Days', '${worker['fullDays']}', const Color(0xFFEFF6FF), const Color(0xFF3B82F6), Icons.check_circle_outline),
+                                  _buildClassyCountBadge('Half Days', '${worker['halfDays']}', const Color(0xFFFEF3C7), const Color(0xFFD97706), Icons.access_time),
+                                  _buildClassyCountBadge('Absent', '${worker['absent']}', const Color(0xFFFEE2E2), const Color(0xFFDC2626), Icons.cancel_outlined),
                                 ],
                               ),
                             ],
@@ -924,16 +1021,29 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     );
   }
 
-  Widget _buildCountBadge(String label, String count, Color bgColor, Color textColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        children: [
-          Text(count, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 11, color: textColor, fontWeight: FontWeight.w600)),
-        ],
+  Widget _buildClassyCountBadge(String label, String count, Color bgColor, Color textColor, IconData icon) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 14, color: textColor),
+                const SizedBox(width: 4),
+                Text(count, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textColor)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(fontSize: 10, color: textColor.withValues(alpha: 0.8), fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
     );
   }
