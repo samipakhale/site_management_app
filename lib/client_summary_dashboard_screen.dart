@@ -67,8 +67,7 @@ class _ClientSummaryDashboardScreenState
   );
   bool _isLoading = true;
 
-  // Financial Summary States
-  double _totalBudget = 0.0;
+  // Financial Summary State (Jama only)
   double _totalReceived = 0.0;
 
   File? _profileImage;
@@ -92,7 +91,6 @@ class _ClientSummaryDashboardScreenState
       }
 
       setState(() {
-        _totalBudget = prefs.getDouble('dashboard_total_budget') ?? 0.0;
         _totalReceived = prefs.getDouble('dashboard_total_received') ?? 0.0;
       });
     } catch (e) {
@@ -103,7 +101,6 @@ class _ClientSummaryDashboardScreenState
   Future<void> _saveFinancialPrefs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setDouble('dashboard_total_budget', _totalBudget);
       await prefs.setDouble('dashboard_total_received', _totalReceived);
     } catch (e) {
       debugPrint("Save Financial Prefs Error: $e");
@@ -197,17 +194,12 @@ class _ClientSummaryDashboardScreenState
             List<Map<String, dynamic>> eqExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Equipment');
             totalEquipment += _calculateSum(eqExpenses);
 
-            List<Map<String, dynamic>> extExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Extra');
-            totalExtra += _calculateSum(extExpenses);
-
-            List<Map<String, dynamic>> miscExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Misc');
-            totalExtra += _calculateSum(miscExpenses);
-
-            List<Map<String, dynamic>> otherExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Other');
-            totalExtra += _calculateSum(otherExpenses);
-             
-            List<Map<String, dynamic>> otherExpenseCat = await DatabaseHelper.instance.getExpenses(sName, 'Other Expense');
-            totalExtra += _calculateSum(otherExpenseCat);
+            // Clean & Correct Loop for Extra/Other Expenses
+            List<String> extraCategories = ['Extra', 'Misc', 'Other', 'Other Expense', 'other expense', 'extra', 'misc', 'other'];
+            for (String cat in extraCategories) {
+              List<Map<String, dynamic>> expenses = await DatabaseHelper.instance.getExpenses(sName, cat);
+              totalExtra += _calculateSum(expenses);
+            }
 
           } catch (_) {}
         }
@@ -270,9 +262,8 @@ class _ClientSummaryDashboardScreenState
     }
   }
 
+  // Edit Jama (Received) Only Dialog
   void _showEditFinancialDialog() {
-    TextEditingController budgetController =
-        TextEditingController(text: _totalBudget > 0 ? _totalBudget.toStringAsFixed(0) : '');
     TextEditingController receivedController =
         TextEditingController(text: _totalReceived > 0 ? _totalReceived.toStringAsFixed(0) : '');
 
@@ -281,30 +272,12 @@ class _ClientSummaryDashboardScreenState
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
         title: const Text(
-          "Edit Financial Summary",
+          "Edit Jama (Total Received)",
           style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: budgetController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: "Total Budget (₹)",
-                labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: const BorderSide(color: Color(0xFF38BDF8)),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
             TextField(
               controller: receivedController,
               keyboardType: TextInputType.number,
@@ -333,7 +306,6 @@ class _ClientSummaryDashboardScreenState
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF38BDF8)),
             onPressed: () {
               setState(() {
-                _totalBudget = double.tryParse(budgetController.text) ?? 0.0;
                 _totalReceived = double.tryParse(receivedController.text) ?? 0.0;
               });
               _saveFinancialPrefs();
@@ -350,12 +322,12 @@ class _ClientSummaryDashboardScreenState
   Widget build(BuildContext context) {
     double grandTotal = _expenseSummary.grandTotal;
     
-    // Automatic Calculation: Pending Due from Client = Total Budget - Total Received (Jama)
-    double pendingFromClient = _totalBudget - _totalReceived;
-    if (pendingFromClient < 0) pendingFromClient = 0;
+    // Total Budget is dynamic and equals Total Expense
+    double totalBudget = grandTotal;
 
-    // Automatic Calculation: Remaining Budget = Total Budget - Total Expense (Kharch)
-    double remainingBudget = _totalBudget - grandTotal;
+    // Pending Due = Total Budget (Expense) - Jama (Received)
+    double pendingFromClient = totalBudget - _totalReceived;
+    if (pendingFromClient < 0) pendingFromClient = 0;
 
     double maxAmount = [
       _expenseSummary.materialTotal,
@@ -517,7 +489,91 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // 2. FINANCIAL SUMMARY CARD (WITH AUTOMATIC PENDING CALCULATION)
+                  // 2. ACTIVE SITES BANNER
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.apartment_rounded,
+                                  color: Color(0xFF38BDF8),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Active Sites (${_activeSites.length})",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF38BDF8).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Text(
+                                "Sites",
+                                style: TextStyle(
+                                  color: Color(0xFF38BDF8),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
+                        const SizedBox(height: 10),
+                        
+                        SizedBox(
+                          height: 130,
+                          child: _activeSites.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    "Kutlihi active site nahiye.",
+                                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: _activeSites.length,
+                                  itemBuilder: (context, index) {
+                                    final site = _activeSites[index];
+                                    return _buildSiteItem(
+                                      site.siteName,
+                                      site.status,
+                                      const Color(0xFF34D399),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 3. FINANCIAL SUMMARY CARD (UPDATED BUDGET = EXPENSE)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
@@ -553,7 +609,7 @@ class _ClientSummaryDashboardScreenState
                             IconButton(
                               icon: const Icon(Icons.edit_rounded, color: Color(0xFF38BDF8), size: 18),
                               onPressed: _showEditFinancialDialog,
-                              tooltip: "Edit Budget & Jama",
+                              tooltip: "Edit Jama",
                             ),
                           ],
                         ),
@@ -561,45 +617,104 @@ class _ClientSummaryDashboardScreenState
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildFinancialItem("Total Budget", "₹ ${_formatCurrency(_totalBudget)}", const Color(0xFF38BDF8)),
+                            _buildFinancialItem("Total Budget (Expense)", "₹ ${_formatCurrency(totalBudget)}", const Color(0xFF38BDF8)),
                             _buildFinancialItem("Jama (Received)", "₹ ${_formatCurrency(_totalReceived)}", const Color(0xFF34D399)),
                             _buildFinancialItem("Pending Due", "₹ ${_formatCurrency(pendingFromClient)}", const Color(0xFFF59E0B)),
                           ],
                         ),
-                        const SizedBox(height: 14),
-                        Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
-                        const SizedBox(height: 10),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 4. EXPENSE BREAKDOWN COLUMN CHART
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text(
-                              "Total Expense (Kharch)",
-                              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
-                            ),
-                            Text(
-                              "₹ ${_formatCurrency(grandTotal)}",
-                              style: const TextStyle(
-                                color: Color(0xFFEF4444),
-                                fontSize: 13,
+                              "Expense Breakdown Chart",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                "Total: ₹ ${_formatCurrency(grandTotal)}",
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF38BDF8),
+                                ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 24),
+
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            const Text(
-                              "Remaining Budget Shillak",
-                              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                            // Left Y-Axis Labels
+                            SizedBox(
+                              height: 180,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(_formatShortCurrency(maxAmount), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                  Text(_formatShortCurrency(maxAmount * 0.75), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                  Text(_formatShortCurrency(maxAmount * 0.5), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                  Text(_formatShortCurrency(maxAmount * 0.25), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                  const Text("0", style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                ],
+                              ),
                             ),
-                            Text(
-                              "₹ ${_formatCurrency(remainingBudget < 0 ? 0 : remainingBudget)}",
-                              style: TextStyle(
-                                color: remainingBudget < 0 ? Colors.redAccent : const Color(0xFF38BDF8),
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
+                            const SizedBox(width: 12),
+
+                            // Vertical Bars Container with Grid Lines
+                            Expanded(
+                              child: Stack(
+                                children: [
+                                  SizedBox(
+                                    height: 180,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: List.generate(5, (_) => Divider(color: Colors.white.withValues(alpha: 0.05), height: 1)),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    height: 180,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        _buildVerticalBar("Material", _expenseSummary.materialTotal, maxAmount, const Color(0xFF38BDF8)),
+                                        _buildVerticalBar("Labour", _expenseSummary.labourTotal, maxAmount, const Color(0xFFF59E0B)),
+                                        _buildVerticalBar("Vendor", _expenseSummary.vendorTotal, maxAmount, const Color(0xFFA855F7)),
+                                        _buildVerticalBar("Equip.", _expenseSummary.equipmentTotal, maxAmount, const Color(0xFF14B8A6)),
+                                        _buildVerticalBar("Extra", _expenseSummary.extraTotal, maxAmount, const Color(0xFFEF4444)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -610,7 +725,7 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // 3. ALL SITES LABOUR & CALL SECTION
+                  // 5. ALL SITES LABOUR & CALL SECTION
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
@@ -737,187 +852,6 @@ class _ClientSummaryDashboardScreenState
                                     );
                                   },
                                 ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // 4. ACTIVE SITES SECTION
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.apartment_rounded,
-                                  color: Color(0xFF38BDF8),
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "Active Sites (${_activeSites.length})",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF38BDF8).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Text(
-                                "Sites",
-                                style: TextStyle(
-                                  color: Color(0xFF38BDF8),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
-                        const SizedBox(height: 10),
-                        
-                        SizedBox(
-                          height: 130,
-                          child: _activeSites.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    "Kutlihi active site nahiye.",
-                                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  itemCount: _activeSites.length,
-                                  itemBuilder: (context, index) {
-                                    final site = _activeSites[index];
-                                    return _buildSiteItem(
-                                      site.siteName,
-                                      site.status,
-                                      const Color(0xFF34D399),
-                                    );
-                                  },
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // 5. EXPENSE BREAKDOWN COLUMN CHART
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              "Expense Breakdown Chart",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                "Total: ₹ ${_formatCurrency(grandTotal)}",
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF38BDF8),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            // Left Y-Axis Labels
-                            SizedBox(
-                              height: 180,
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(_formatShortCurrency(maxAmount), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                                  Text(_formatShortCurrency(maxAmount * 0.75), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                                  Text(_formatShortCurrency(maxAmount * 0.5), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                                  Text(_formatShortCurrency(maxAmount * 0.25), style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                                  const Text("0", style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-
-                            // Vertical Bars Container with Grid Lines
-                            Expanded(
-                              child: Stack(
-                                children: [
-                                  SizedBox(
-                                    height: 180,
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: List.generate(5, (_) => Divider(color: Colors.white.withValues(alpha: 0.05), height: 1)),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    height: 180,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                      children: [
-                                        _buildVerticalBar("Material", _expenseSummary.materialTotal, maxAmount, const Color(0xFF38BDF8)),
-                                        _buildVerticalBar("Labour", _expenseSummary.labourTotal, maxAmount, const Color(0xFFF59E0B)),
-                                        _buildVerticalBar("Vendor", _expenseSummary.vendorTotal, maxAmount, const Color(0xFFA855F7)),
-                                        _buildVerticalBar("Equip.", _expenseSummary.equipmentTotal, maxAmount, const Color(0xFF14B8A6)),
-                                        _buildVerticalBar("Extra", _expenseSummary.extraTotal, maxAmount, const Color(0xFFEF4444)),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                     ),

@@ -23,7 +23,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
 
   String _selectedMonth = DateTime.now().month.toString().padLeft(2, '0');
   String _selectedYear = DateTime.now().year.toString();
-  List<String> _yearsList = [DateTime.now().year.toString()]; // डायनॅमिक वर्षांसाठी लिस्ट
+  List<String> _yearsList = [DateTime.now().year.toString()];
 
   final List<Map<String, String>> _monthsList = [
     {'val': '01', 'name': 'January'},
@@ -61,7 +61,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     setState(() => _isLoading = true);
     final data = await DatabaseHelper.instance.getExpenses(widget.siteName, widget.categoryTitle);
     
-    // डेटाबेस आणि एंट्रीजमधून उपलब्ध वर्षे डायनॅमिकली गोळा करणे
     Set<String> yearsSet = {};
     for (var exp in data) {
       String dateStr = exp['date']?.toString() ?? '';
@@ -93,13 +92,14 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
         final title = exp['title']?.toString().toLowerCase() ?? '';
         final desc = exp['desc']?.toString().toLowerCase() ?? '';
         final date = exp['date']?.toString().toLowerCase() ?? '';
-        return title.contains(query) || desc.contains(query) || date.contains(query);
+        final unit = exp['unit']?.toString().toLowerCase() ?? '';
+        return title.contains(query) || desc.contains(query) || date.contains(query) || unit.contains(query);
       }).toList();
     });
   }
 
   final List<String> _materialOptions = ['Sand', 'Agg', 'Steel', 'Cement', 'Bitumin'];
-  final List<String> _equipmentOptions = ['J.C.B (Per Hr.)', 'Poclain (Per Hr.)', 'Tractor (Halday / Days)', 'Tanker (Nos.)'];
+  final List<String> _equipmentOptions = ['J.C.B', 'Poclain', 'Tractor', 'Tanker', 'Roller', 'Mixer Machine'];
   final List<String> _vendorStatusOptions = ['Paid', 'Pending'];
   final List<String> _labourStatusOptions = ['Present (Full Day)', 'Half Day', 'Absent'];
   final List<String> _labourPaymentStatusOptions = ['Paid', 'Pending'];
@@ -224,10 +224,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
               pw.SizedBox(height: 14),
               pw.Divider(),
               pw.TableHelper.fromTextArray(
-                headers: ['Title / Item', 'Details / Note', 'Date', 'Amount (Rs)'],
+                headers: ['Title / Item', 'Unit/Qty', 'Details / Note', 'Date', 'Amount (Rs)'],
                 data: _filteredExpenses.map((exp) {
                   return [
                     exp['title'].toString(),
+                    exp['unit']?.toString() ?? '-',
                     exp['desc'].toString(),
                     exp['date'].toString(),
                     exp['amount'].toString(),
@@ -286,6 +287,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
 
     final TextEditingController titleController = TextEditingController(text: isEditing ? existingExpense['title']?.toString() : '');
     final TextEditingController phoneController = TextEditingController();
+    final TextEditingController unitController = TextEditingController(text: isEditing ? existingExpense['unit']?.toString() : '');
     final TextEditingController amountController = TextEditingController(text: isEditing ? existingExpense['amount']?.toString() : '');
     final TextEditingController descController = TextEditingController();
 
@@ -480,6 +482,30 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                     const SizedBox(height: 14),
                   ],
 
+                  if (cat.contains('material')) ...[
+                    TextField(
+                      controller: unitController,
+                      decoration: InputDecoration(
+                        labelText: 'Unit / Quantity (उदा. Bags, Ton, Nos)',
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ] else if (cat.contains('equipment')) ...[
+                    TextField(
+                      controller: unitController,
+                      decoration: InputDecoration(
+                        labelText: 'Unit / Usage (उदा. Hrs, Days, Shifts, Trips)',
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+
                   TextField(
                     controller: descController,
                     decoration: InputDecoration(
@@ -638,12 +664,20 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                       }
                     }
 
-                    String formattedDateTime = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')} ${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
+                    String formattedDateOnly = '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+                    String formattedDateTime = '$formattedDateOnly ${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
+
+                    String generatedId = DateTime.now().millisecondsSinceEpoch.toString();
+                    if (cat.contains('labour')) {
+                      String cleanWorkerName = expenseTitle.replaceAll(RegExp(r'\s+'), '_').toLowerCase();
+                      generatedId = '${cleanWorkerName}_$formattedDateOnly';
+                    }
 
                     Map<String, dynamic> expenseData = {
-                      'id': isEditing ? existingExpense['id'].toString() : DateTime.now().millisecondsSinceEpoch.toString(),
+                      'id': isEditing ? existingExpense['id'].toString() : generatedId,
                       'title': expenseTitle,
                       'amount': amountController.text.trim(),
+                      'unit': (cat.contains('material') || cat.contains('equipment')) ? unitController.text.trim() : '',
                       'desc': fullDesc,
                       'date': formattedDateTime,
                     };
@@ -673,6 +707,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
 
   Widget _buildRecordsView() {
     double totalAmount = _calculateTotalAmount();
+    bool isLabourCategory = widget.categoryTitle.toLowerCase().contains('labour');
+
     return Column(
       children: [
         Container(
@@ -751,6 +787,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                   itemCount: _filteredExpenses.length,
                   itemBuilder: (context, index) {
                     final exp = _filteredExpenses[index];
+                    final String unitVal = exp['unit']?.toString() ?? '';
+                    final String descStr = exp['desc']?.toString() ?? '';
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       decoration: BoxDecoration(
@@ -773,6 +812,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                           child: Padding(
                             padding: const EdgeInsets.all(14),
                             child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Container(
                                   padding: const EdgeInsets.all(10),
@@ -780,7 +820,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                                     color: const Color(0xFFEFF6FF),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: const Icon(Icons.receipt, color: Color(0xFF3B82F6), size: 20),
+                                  child: Icon(
+                                    isLabourCategory ? Icons.person_rounded : Icons.receipt,
+                                    color: const Color(0xFF3B82F6),
+                                    size: 20,
+                                  ),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -794,9 +838,13 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
                                       ),
                                       const SizedBox(height: 4),
-                                      if (exp['desc'] != null && exp['desc'].toString().isNotEmpty)
-                                        Text(exp['desc'].toString(), style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-                                      const SizedBox(height: 2),
+                                      if (!isLabourCategory && unitVal.isNotEmpty) ...[
+                                        Text('Unit/Qty: $unitVal', style: TextStyle(color: Colors.blue.shade700, fontSize: 12, fontWeight: FontWeight.w600)),
+                                        const SizedBox(height: 2),
+                                      ],
+                                      if (!isLabourCategory && descStr.isNotEmpty)
+                                        Text(descStr, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                                      
                                       Text(
                                         exp['date']?.toString() ?? '',
                                         style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
@@ -811,7 +859,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                                       '₹ ${exp['amount']}',
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF16A34A)),
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 8),
                                     InkWell(
                                       onTap: () async {
                                         bool? confirm = await showDialog(
@@ -850,7 +898,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
     );
   }
 
-  // --- CLASSY & PREMIUM MONTHLY REPORT UI DESIGN WITH DYNAMIC YEARS ---
   Widget _buildMonthlyReportView() {
     var summaryMap = _getMonthlyLabourSummary();
     var workersList = summaryMap.values.toList();
