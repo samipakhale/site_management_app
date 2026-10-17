@@ -137,7 +137,7 @@ class _ClientSummaryDashboardScreenState
       List<Map<String, dynamic>> rawSites = await DatabaseHelper.instance.getSites();
 
       List<SiteModel> loadedSites = [];
-      List<Map<String, dynamic>> allLaboursTemp = [];
+      Map<String, Map<String, dynamic>> uniqueLaboursMap = {};
 
       double totalMaterial = 0.0;
       double totalLabour = 0.0;
@@ -165,8 +165,9 @@ class _ClientSummaryDashboardScreenState
             List<Map<String, dynamic>> labExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Labour');
             totalLabour += _calculateSum(labExpenses);
 
-            // Fetch Labour list and extract phone numbers dynamically
+            // Fetch Labour list and extract phone numbers dynamically (Unique per site)
             for (var lab in labExpenses) {
+              String workerName = lab['title']?.toString().trim() ?? 'Worker';
               String desc = lab['desc']?.toString() ?? '';
               String phoneNum = '';
               
@@ -180,12 +181,17 @@ class _ClientSummaryDashboardScreenState
                 } catch (_) {}
               }
 
-              allLaboursTemp.add({
-                'siteName': sName,
-                'name': lab['title'] ?? 'Worker',
-                'phone': phoneNum,
-                'status': desc,
-              });
+              String key = '${sName}_${workerName.toLowerCase()}';
+              if (!uniqueLaboursMap.containsKey(key)) {
+                uniqueLaboursMap[key] = {
+                  'siteName': sName,
+                  'name': workerName,
+                  'phone': phoneNum,
+                  'status': desc,
+                };
+              } else if (uniqueLaboursMap[key]!['phone'].toString().isEmpty && phoneNum.isNotEmpty) {
+                uniqueLaboursMap[key]!['phone'] = phoneNum;
+              }
             }
 
             List<Map<String, dynamic>> venExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Vendor');
@@ -194,8 +200,7 @@ class _ClientSummaryDashboardScreenState
             List<Map<String, dynamic>> eqExpenses = await DatabaseHelper.instance.getExpenses(sName, 'Equipment');
             totalEquipment += _calculateSum(eqExpenses);
 
-            // Clean & Correct Loop for Extra/Other Expenses
-            List<String> extraCategories = ['Extra', 'Misc', 'Other', 'Other Expense', 'other expense', 'extra', 'misc', 'other'];
+            List<String> extraCategories = ['Extra', 'Misc', 'Other', 'Other Expense',  'other expense','extra', 'misc', 'other','Miscellaneous'];
             for (String cat in extraCategories) {
               List<Map<String, dynamic>> expenses = await DatabaseHelper.instance.getExpenses(sName, cat);
               totalExtra += _calculateSum(expenses);
@@ -218,7 +223,7 @@ class _ClientSummaryDashboardScreenState
 
       setState(() {
         _activeSites = loadedSites;
-        _allSitesLabours = allLaboursTemp;
+        _allSitesLabours = uniqueLaboursMap.values.toList();
         _expenseSummary = CategoryExpenseSummary(
           materialTotal: totalMaterial,
           labourTotal: totalLabour,
@@ -246,7 +251,6 @@ class _ClientSummaryDashboardScreenState
     return sum;
   }
 
-  //Direct Phone Call Function
   Future<void> _makePhoneCall(String phoneNumber) async {
     if (phoneNumber.trim().isEmpty) return;
     
@@ -262,7 +266,6 @@ class _ClientSummaryDashboardScreenState
     }
   }
 
-  // Edit Jama (Received) Only Dialog
   void _showEditFinancialDialog() {
     TextEditingController receivedController =
         TextEditingController(text: _totalReceived > 0 ? _totalReceived.toStringAsFixed(0) : '');
@@ -321,11 +324,8 @@ class _ClientSummaryDashboardScreenState
   @override
   Widget build(BuildContext context) {
     double grandTotal = _expenseSummary.grandTotal;
-    
-    // Total Budget is dynamic and equals Total Expense
     double totalBudget = grandTotal;
 
-    // Pending Due = Total Budget (Expense) - Jama (Received)
     double pendingFromClient = totalBudget - _totalReceived;
     if (pendingFromClient < 0) pendingFromClient = 0;
 
@@ -386,7 +386,6 @@ class _ClientSummaryDashboardScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. WELCOME BANNER WITH PERMANENT DP
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(22),
@@ -489,7 +488,6 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // 2. ACTIVE SITES BANNER
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
@@ -573,7 +571,6 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // 3. FINANCIAL SUMMARY CARD (UPDATED BUDGET = EXPENSE)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
@@ -628,7 +625,6 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // 4. EXPENSE BREAKDOWN COLUMN CHART
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -672,7 +668,6 @@ class _ClientSummaryDashboardScreenState
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            // Left Y-Axis Labels
                             SizedBox(
                               height: 180,
                               child: Column(
@@ -689,7 +684,6 @@ class _ClientSummaryDashboardScreenState
                             ),
                             const SizedBox(width: 12),
 
-                            // Vertical Bars Container with Grid Lines
                             Expanded(
                               child: Stack(
                                 children: [
@@ -725,7 +719,6 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 20),
 
-                  // 5. ALL SITES LABOUR & CALL SECTION
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(18),
@@ -859,7 +852,6 @@ class _ClientSummaryDashboardScreenState
 
                   const SizedBox(height: 24),
 
-                  // 6. VIEW SITE MANAGEMENT BUTTON
                   SizedBox(
                     width: double.infinity,
                     height: 56,

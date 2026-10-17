@@ -71,7 +71,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
         }
       }
     }
-    yearsSet.add(DateTime.now().year.toString());
+    //yearsSet.add(DateTime.now().year.toString());
+    // २. २०१६ ते २०५० पर्यंतची सर्व वर्षे ऑटोमॅटिकली ॲड करणे
+    for (int i = 2016; i <= 2050; i++) {
+      yearsSet.add(i.toString());
+    }
     List<String> sortedYears = yearsSet.toList()..sort((a, b) => b.compareTo(a));
 
     setState(() {
@@ -353,6 +357,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                   if (cat.contains('material')) ...[
                     DropdownButtonFormField<String>(
                       initialValue: _selectedSubMaterial,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
                       decoration: InputDecoration(
                         labelText: 'Select Material',
                         filled: true,
@@ -368,6 +374,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                   ] else if (cat.contains('equipment')) ...[
                     DropdownButtonFormField<String>(
                       initialValue: _selectedSubEquipment,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
                       decoration: InputDecoration(
                         labelText: 'Select Equipment',
                         filled: true,
@@ -404,6 +412,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                     const SizedBox(height: 14),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedLabourStatus,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
                       decoration: InputDecoration(
                         labelText: 'Attendance / Shift Status',
                         filled: true,
@@ -418,6 +428,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                     const SizedBox(height: 14),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedLabourPaymentStatus,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
                       decoration: InputDecoration(
                         labelText: 'Payment Status',
                         filled: true,
@@ -443,6 +455,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                     const SizedBox(height: 14),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedVendorStatus,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
                       decoration: InputDecoration(
                         labelText: 'Payment Status',
                         filled: true,
@@ -468,6 +482,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                     const SizedBox(height: 14),
                     DropdownButtonFormField<String>(
                       initialValue: _selectedOtherCategory,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
                       decoration: InputDecoration(
                         labelText: 'Expense Category',
                         filled: true,
@@ -532,6 +548,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
                   if (cat.contains('other') || cat.contains('expense')) ...[
                     DropdownButtonFormField<String>(
                       initialValue: _selectedPaymentMode,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
                       decoration: InputDecoration(
                         labelText: 'Payment Mode',
                         filled: true,
@@ -919,6 +937,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
               Expanded(
                 child: DropdownButtonFormField<String>(
                   initialValue: _selectedMonth,
+                  isExpanded: true,
+                  dropdownColor: Colors.white,
                   decoration: InputDecoration(
                     labelText: 'Month',
                     labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
@@ -935,6 +955,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> with Single
               Expanded(
                 child: DropdownButtonFormField<String>(
                   initialValue: _yearsList.contains(_selectedYear) ? _selectedYear : _yearsList.first,
+                  isExpanded: true,
+                  dropdownColor: Colors.white,
                   decoration: InputDecoration(
                     labelText: 'Year',
                     labelStyle: const TextStyle(color: Colors.grey, fontSize: 13),
